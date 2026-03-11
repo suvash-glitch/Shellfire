@@ -988,14 +988,17 @@ ipcMain.handle("ssh-remote-list", async (_, { host, user, port, password, remote
   sshArgs.push(`${user}@${host}`);
 
   // Node one-liner that queries the remote Terminator socket
+  // Exits immediately after receiving data to avoid timeout
   const probe = `node -e '
     const net=require("net"),path=require("path"),os=require("os"),fs=require("fs");
     const SOCK=path.join(os.homedir(),".terminator","terminator.sock");
     if(!fs.existsSync(SOCK)){console.log(JSON.stringify({error:"Terminator is not running on this host"}));process.exit(0)}
     const c=net.createConnection(SOCK,()=>{c.write(JSON.stringify({action:"list"})+"\\n")});
-    let d="";c.on("data",ch=>d+=ch.toString());c.on("end",()=>console.log(d));
-    c.on("error",e=>{console.log(JSON.stringify({error:e.message}))});
-    setTimeout(()=>{console.log(JSON.stringify({error:"timeout"}));process.exit(1)},8000);
+    let d="";
+    c.on("data",ch=>{d+=ch.toString();try{JSON.parse(d);console.log(d);process.exit(0)}catch{}});
+    c.on("end",()=>{console.log(d||JSON.stringify({error:"empty response"}));process.exit(0)});
+    c.on("error",e=>{console.log(JSON.stringify({error:e.message}));process.exit(0)});
+    setTimeout(()=>{if(d){console.log(d);process.exit(0)}console.log(JSON.stringify({error:"timeout"}));process.exit(1)},8000);
   '`;
   sshArgs.push(probe);
 
@@ -1006,6 +1009,10 @@ ipcMain.handle("ssh-remote-list", async (_, { host, user, port, password, remote
     const result = await new Promise((resolve, reject) => {
       execFile("ssh", sshArgs, { encoding: "utf8", timeout: 20000, env }, (err, stdout, stderr) => {
         cleanupAskpass(askpassScript);
+        // Try to parse stdout even on error (probe may have printed data before exit)
+        if (stdout && stdout.trim()) {
+          try { const parsed = JSON.parse(stdout.trim()); resolve(JSON.stringify(parsed)); } catch {}
+        }
         if (err) {
           const msg = stderr || err.message;
           if (msg.includes("Permission denied")) reject(new Error("Authentication failed. Check your username and password."));
