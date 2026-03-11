@@ -11,6 +11,7 @@
     "build": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
+    "test": "node --test test/*.test.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
@@ -21,6 +22,7 @@
     "@xterm/addon-webgl": "^0.19.0",
     "@xterm/xterm": "^5.4.0",
     "electron": "^35.0.0",
+    "electron-updater": "^6.0.0",
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
@@ -30,6 +32,7 @@
   "build": {
     "appId": "com.terminator.app",
     "productName": "Terminator",
+    "icon": "assets/icon.svg",
     "directories": {
       "output": "dist"
     },

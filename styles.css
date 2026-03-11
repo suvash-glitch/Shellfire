@@ -744,3 +744,74 @@
 
     /* Tab drag indicator */
     .tab.drag-over { box-shadow: -2px 0 0 #007aff; }
+
+    /* Settings panel */
+    .settings-section { padding: 12px 16px; border-bottom: 1px solid #2a2a2a; }
+    .settings-section-title {
+      font-size: 10px; color: #888; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 10px;
+    }
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 0; font-size: 12px; color: #ccc;
+    }
+    .settings-row label { flex-shrink: 0; min-width: 120px; }
+    .settings-select {
+      background: #1e1e1e; border: 1px solid #444; border-radius: 4px;
+      color: #eee; font-size: 12px; padding: 4px 8px; outline: none;
+      font-family: inherit; min-width: 160px;
+    }
+    .settings-select:focus { border-color: #007aff; }
+    .settings-input {
+      background: #1e1e1e; border: 1px solid #444; border-radius: 4px;
+      color: #eee; font-size: 12px; padding: 4px 8px; outline: none;
+      font-family: "SF Mono", monospace; width: 80px; text-align: right;
+    }
+    .settings-input:focus { border-color: #007aff; }
+    .settings-input-wide {
+      background: #1e1e1e; border: 1px solid #444; border-radius: 4px;
+      color: #eee; font-size: 12px; padding: 4px 8px; outline: none;
+      font-family: "SF Mono", monospace; flex: 1; min-width: 0;
+    }
+    .settings-input-wide:focus { border-color: #007aff; }
+    .settings-value { color: #888; font-size: 11px; font-family: "SF Mono", monospace; }
+    .settings-btn {
+      background: rgba(0,122,255,0.15); border: 1px solid rgba(0,122,255,0.3);
+      color: #5ac8fa; font-size: 11px; padding: 4px 12px; border-radius: 4px;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .settings-btn:hover { background: rgba(0,122,255,0.25); color: #fff; }
+    .settings-row input[type="checkbox"] {
+      appearance: none; -webkit-appearance: none; width: 36px; height: 20px;
+      background: #444; border-radius: 10px; position: relative; cursor: pointer;
+      transition: background 0.2s; flex-shrink: 0;
+    }
+    .settings-row input[type="checkbox"]::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+      background: #fff; border-radius: 50%; transition: transform 0.2s;
+    }
+    .settings-row input[type="checkbox"]:checked { background: #007aff; }
+    .settings-row input[type="checkbox"]:checked::after { transform: translateX(16px); }
+
+    /* Keybinding editor */
+    .keybinding-list { padding: 4px 0; }
+    .keybinding-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 0; font-size: 11px; gap: 8px;
+    }
+    .keybinding-row .kb-action { color: #ccc; flex: 1; }
+    .keybinding-row .kb-key {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      color: #888; font-size: 10px; padding: 2px 8px; border-radius: 4px;
+      font-family: -apple-system, sans-serif; cursor: pointer; min-width: 80px;
+      text-align: center; transition: all 0.15s;
+    }
+    .keybinding-row .kb-key:hover { border-color: #007aff; color: #5ac8fa; }
+    .keybinding-row .kb-key.recording { border-color: #ff9f0a; color: #ff9f0a; animation: pulse 1s infinite; }
+
+    /* Toast variants */
+    .toast.error { border-color: rgba(255,69,58,0.3); }
+    .toast.error::before {
+      content: ""; display: inline-block; width: 6px; height: 6px;
+      background: #ff453a; border-radius: 50%; margin-right: 8px; vertical-align: middle;
+    }

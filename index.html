@@ -51,6 +51,9 @@
       <button class="btn-icon" id="btn-theme" title="Theme">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18" fill="currentColor"/></svg>
       </button>
+      <button class="btn-icon" id="btn-settings" title="Settings  Cmd+,">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
     </div>
   </div>
 
@@ -86,6 +89,128 @@
 
   <div class="context-menu" id="context-menu"></div>
   <div class="toast" id="toast"></div>
+
+  <!-- Settings Panel -->
+  <div class="side-panel" id="settings-panel">
+    <div class="side-panel-header">
+      <h3>Settings</h3>
+      <button class="side-panel-close" id="settings-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="side-panel-body" id="settings-body">
+      <div class="settings-section">
+        <div class="settings-section-title">Appearance</div>
+        <div class="settings-row">
+          <label>Theme</label>
+          <select id="setting-theme" class="settings-select"></select>
+        </div>
+        <div class="settings-row">
+          <label>Font Size</label>
+          <input type="number" id="setting-font-size" class="settings-input" min="8" max="24" value="13" />
+        </div>
+        <div class="settings-row">
+          <label>Font Family</label>
+          <input type="text" id="setting-font-family" class="settings-input-wide" value='"SF Mono", "Menlo", "Monaco", "Courier New", monospace' />
+        </div>
+        <div class="settings-row">
+          <label>Cursor Style</label>
+          <select id="setting-cursor-style" class="settings-select">
+            <option value="block">Block</option>
+            <option value="underline">Underline</option>
+            <option value="bar">Bar</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>Cursor Blink</label>
+          <input type="checkbox" id="setting-cursor-blink" checked />
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Terminal</div>
+        <div class="settings-row">
+          <label>Default Shell</label>
+          <input type="text" id="setting-shell" class="settings-input-wide" placeholder="Auto-detect" />
+        </div>
+        <div class="settings-row">
+          <label>Default Directory</label>
+          <input type="text" id="setting-cwd" class="settings-input-wide" placeholder="Home directory" />
+        </div>
+        <div class="settings-row">
+          <label>Scrollback Lines</label>
+          <input type="number" id="setting-scrollback" class="settings-input" min="1000" max="100000" value="10000" step="1000" />
+        </div>
+        <div class="settings-row">
+          <label>Buffer Limit (KB)</label>
+          <input type="number" id="setting-buffer-limit" class="settings-input" min="64" max="2048" value="512" step="64" />
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Behavior</div>
+        <div class="settings-row">
+          <label>Copy on Select</label>
+          <input type="checkbox" id="setting-copy-on-select" checked />
+        </div>
+        <div class="settings-row">
+          <label>Confirm Close</label>
+          <input type="checkbox" id="setting-confirm-close" checked />
+        </div>
+        <div class="settings-row">
+          <label>Auto-save Session</label>
+          <input type="checkbox" id="setting-auto-save" checked />
+        </div>
+        <div class="settings-row">
+          <label>Auto-save Interval (sec)</label>
+          <input type="number" id="setting-auto-save-interval" class="settings-input" min="10" max="600" value="60" step="10" />
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Keyboard Shortcuts</div>
+        <div class="settings-row">
+          <label>Customize keybindings</label>
+          <button class="settings-btn" id="setting-edit-keys">Edit Keybindings</button>
+        </div>
+        <div id="keybinding-list" class="keybinding-list" style="display:none"></div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">About</div>
+        <div class="settings-row">
+          <label>Version</label>
+          <span id="setting-version" class="settings-value">--</span>
+        </div>
+        <div class="settings-row">
+          <label>Shell</label>
+          <span id="setting-detected-shell" class="settings-value">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding overlay (first run) -->
+  <div class="palette-overlay" id="onboarding-overlay">
+    <div class="palette" style="width:500px;max-height:520px">
+      <div style="padding:24px 24px 0;text-align:center">
+        <div style="font-size:36px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#5ac8fa,#007aff,#bf5af2);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Terminator</div>
+        <div style="color:#888;font-size:13px;margin:8px 0 20px">Welcome! Let's set up your terminal.</div>
+      </div>
+      <div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label style="display:block;font-size:11px;color:#888;margin-bottom:4px">Theme</label>
+          <select id="onboard-theme" class="settings-select" style="width:100%"></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:#888;margin-bottom:4px">Font Size</label>
+          <input type="number" id="onboard-font-size" class="settings-input" style="width:100%" min="8" max="24" value="13" />
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:#888;margin-bottom:4px">Add a project (optional)</label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="onboard-project-name" class="settings-input-wide" placeholder="Name" style="flex:1" />
+            <input type="text" id="onboard-project-path" class="settings-input-wide" placeholder="/path/to/project" style="flex:2" />
+          </div>
+        </div>
+        <button id="onboard-done" style="background:#007aff;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;margin-top:8px;transition:background 0.15s">Get Started</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Cron Manager Overlay -->
   <div class="cron-overlay" id="cron-overlay">

@@ -16,6 +16,12 @@
     let copyOnSelect = true;
     let snippets = []; // { name, command }
     let profiles = []; // { name, panes: [{ cwd, command }] }
+    let settings = {}; // loaded from settings.json
+    let autoSaveInterval = 60; // seconds
+    let autoSaveTimer = null;
+    let bufferLimit = 512 * 1024; // configurable buffer limit
+    let confirmClose = true;
+    let customKeybindings = {}; // action -> shortcut override
 
     // ============================================================
     // THEMES
@@ -83,11 +89,13 @@
     // UTILS
     // ============================================================
     let toastTimer = null;
-    function showToast(msg) {
+    function showToast(msg, type) {
       toastEl.textContent = msg;
+      toastEl.classList.remove("error");
+      if (type === "error") toastEl.classList.add("error");
       toastEl.classList.add("visible");
       clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toastEl.classList.remove("visible"), 2000);
+      toastTimer = setTimeout(() => { toastEl.classList.remove("visible", "error"); }, type === "error" ? 4000 : 2000);
     }
 
     function getClaudeCommand() {
@@ -471,7 +479,7 @@
     // ============================================================
     // IPC
     // ============================================================
-    const MAX_RAW_BUFFER = 512 * 1024; // 512KB per pane
+    const MAX_RAW_BUFFER = bufferLimit; // configurable per pane
 
     window.terminator.onData((id, data) => {
       const pane = panes.get(id);
@@ -927,7 +935,7 @@
         }
       } catch (err) {
         console.error("Restore error:", err);
-        showToast("Failed to restore session");
+        showToast("Failed to restore session", "error");
         if (panes.size === 0) await addTerminal();
       }
     }
@@ -970,7 +978,28 @@
         let dotClass = "";
         if (p?.color) dotClass = `color-${p.color}`;
         else if (id !== activeId && p?.activityDot?.classList.contains("visible")) dotClass = "activity";
-        tab.innerHTML = `<span class="tab-num">${i < 9 ? i + 1 : ""}</span><span class="tab-dot ${dotClass}"></span>${shortName}<button class="tab-close">&times;</button>`;
+
+        // Process info
+        const proc = p?._lastProcess;
+        const procHtml = proc && proc !== "zsh" && proc !== "bash" && proc !== "fish" ? `<span class="tab-process">${proc}</span>` : "";
+
+        // Git info
+        const branch = p?._lastGitBranch;
+        const dirty = p?._lastGitDirty;
+        const gitHtml = branch ? `<span class="tab-git${dirty ? " dirty" : ""}">${branch}</span>` : "";
+
+        // Duration
+        const startTime = p?._commandStart;
+        let durationHtml = "";
+        if (startTime && proc && proc !== "zsh" && proc !== "bash" && proc !== "fish") {
+          const elapsed = Math.round((Date.now() - startTime) / 1000);
+          if (elapsed >= 5) {
+            const fmt = elapsed >= 3600 ? `${Math.floor(elapsed/3600)}h${Math.floor((elapsed%3600)/60)}m` : elapsed >= 60 ? `${Math.floor(elapsed/60)}m${elapsed%60}s` : `${elapsed}s`;
+            durationHtml = `<span class="tab-duration${elapsed >= 60 ? " long" : ""}">${fmt}</span>`;
+          }
+        }
+
+        tab.innerHTML = `<span class="tab-num">${i < 9 ? i + 1 : ""}</span><span class="tab-dot ${dotClass}"></span>${shortName}${procHtml}${gitHtml}${durationHtml}<button class="tab-close">&times;</button>`;
         tab.addEventListener("click", (e) => { if (!e.target.classList.contains("tab-close")) setActive(id); });
         tab.querySelector(".tab-close").addEventListener("click", (e) => { e.stopPropagation(); removeTerminal(id); });
         tab.addEventListener("dblclick", (e) => { e.preventDefault(); renamePaneUI(id); });
@@ -978,6 +1007,45 @@
         tabbar.appendChild(tab);
       });
     }
+
+    // Enrich tab data periodically (process, git, duration)
+    async function enrichTabData() {
+      for (const [id, pane] of panes) {
+        try {
+          const [proc, cwd] = await Promise.all([
+            window.terminator.getProcess(id),
+            window.terminator.getCwd(id),
+          ]);
+          const oldProc = pane._lastProcess;
+          pane._lastProcess = proc || null;
+
+          // Track command start time
+          if (proc && proc !== "zsh" && proc !== "bash" && proc !== "fish") {
+            if (!pane._commandStart || oldProc !== proc) pane._commandStart = Date.now();
+          } else {
+            pane._commandStart = null;
+          }
+
+          // Git info
+          if (cwd) {
+            const [branch, status] = await Promise.all([
+              window.terminator.getGitBranch(cwd),
+              window.terminator.getGitStatus(cwd),
+            ]);
+            pane._lastGitBranch = branch || null;
+            pane._lastGitDirty = status === "dirty";
+          } else {
+            pane._lastGitBranch = null;
+            pane._lastGitDirty = false;
+          }
+        } catch {
+          pane._lastProcess = null;
+          pane._lastGitBranch = null;
+        }
+      }
+      updateTabBar();
+    }
+    setInterval(enrichTabData, 3000);
 
     function updateWelcomeScreen() {
       const welcome = document.getElementById("welcome");
@@ -1044,7 +1112,7 @@
       if (!line) return;
       const ok = await window.terminator.cronAdd(line);
       if (ok) { showToast("Cron job added"); cronInput.value = ""; await refreshCronList(); }
-      else showToast("Failed to add cron job");
+      else showToast("Failed to add cron job", "error");
     });
     cronInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") document.getElementById("cron-add-btn").click();
@@ -1368,6 +1436,7 @@
     document.getElementById("btn-search").addEventListener("click", openSearch);
     document.getElementById("btn-palette").addEventListener("click", openPalette);
     document.getElementById("btn-theme").addEventListener("click", cycleTheme);
+    document.getElementById("btn-settings").addEventListener("click", openSettings);
 
     // Quick launch dropdown
     const launchDropdown = document.getElementById("launch-dropdown");
@@ -1535,6 +1604,7 @@
       else if (meta && e.ctrlKey && e.key === "ArrowDown") { e.preventDefault(); resizePaneKeyboard("down"); }
       else if (meta && e.ctrlKey && e.key === "ArrowUp") { e.preventDefault(); resizePaneKeyboard("up"); }
       else if (meta && e.key === ";") { e.preventDefault(); openQuickCmd(); }
+      else if (meta && e.key === ",") { e.preventDefault(); openSettings(); }
       else if (meta && e.key >= "1" && e.key <= "9") { e.preventDefault(); const idx = parseInt(e.key) - 1; const ids = [...panes.keys()]; if (idx < ids.length) setActive(ids[idx]); }
     });
 
@@ -2000,6 +2070,7 @@
         });
       } catch {
         dockerBody.innerHTML = '<div style="padding:24px;text-align:center;color:#666;font-size:12px">Docker not available</div>';
+        showToast("Docker is not running or not installed", "error");
       }
     }
 
@@ -2539,6 +2610,260 @@
     setInterval(refreshSmartNames, 4000);
 
     // ============================================================
+    // SETTINGS UI
+    // ============================================================
+    function openSettings() {
+      const panel = document.getElementById("settings-panel");
+      panel.classList.add("visible");
+
+      // Populate theme dropdown
+      const themeSelect = document.getElementById("setting-theme");
+      themeSelect.innerHTML = "";
+      themes.forEach((t, i) => {
+        const opt = document.createElement("option");
+        opt.value = i; opt.textContent = t.name;
+        if (i === currentThemeIdx) opt.selected = true;
+        themeSelect.appendChild(opt);
+      });
+
+      // Populate current values
+      document.getElementById("setting-font-size").value = currentFontSize;
+      document.getElementById("setting-font-family").value = settings.fontFamily || '"SF Mono", "Menlo", "Monaco", "Courier New", monospace';
+      document.getElementById("setting-cursor-style").value = settings.cursorStyle || "block";
+      document.getElementById("setting-cursor-blink").checked = settings.cursorBlink !== false;
+      document.getElementById("setting-shell").value = settings.shell || "";
+      document.getElementById("setting-cwd").value = settings.defaultCwd || "";
+      document.getElementById("setting-scrollback").value = settings.scrollback || 10000;
+      document.getElementById("setting-buffer-limit").value = Math.round(bufferLimit / 1024);
+      document.getElementById("setting-copy-on-select").checked = copyOnSelect;
+      document.getElementById("setting-confirm-close").checked = confirmClose;
+      document.getElementById("setting-auto-save").checked = settings.autoSaveSession !== false;
+      document.getElementById("setting-auto-save-interval").value = autoSaveInterval;
+
+      // Version info
+      window.terminator.getAppVersion().then(v => { document.getElementById("setting-version").textContent = v; }).catch(() => {});
+      window.terminator.getDefaultShell().then(s => { document.getElementById("setting-detected-shell").textContent = s; }).catch(() => {});
+    }
+
+    function closeSettings() {
+      document.getElementById("settings-panel").classList.remove("visible");
+      if (activeId && panes.has(activeId)) panes.get(activeId).term.focus();
+    }
+
+    function applySettings() {
+      const newTheme = parseInt(document.getElementById("setting-theme").value);
+      const newFontSize = parseInt(document.getElementById("setting-font-size").value);
+      const newFontFamily = document.getElementById("setting-font-family").value.trim();
+      const newCursorStyle = document.getElementById("setting-cursor-style").value;
+      const newCursorBlink = document.getElementById("setting-cursor-blink").checked;
+      const newScrollback = parseInt(document.getElementById("setting-scrollback").value);
+      const newBufferKB = parseInt(document.getElementById("setting-buffer-limit").value);
+
+      copyOnSelect = document.getElementById("setting-copy-on-select").checked;
+      confirmClose = document.getElementById("setting-confirm-close").checked;
+      autoSaveInterval = parseInt(document.getElementById("setting-auto-save-interval").value) || 60;
+      bufferLimit = (newBufferKB || 512) * 1024;
+
+      // Apply to all terminals
+      for (const [, pane] of panes) {
+        pane.term.options.fontSize = newFontSize;
+        pane.term.options.fontFamily = newFontFamily;
+        pane.term.options.cursorStyle = newCursorStyle;
+        pane.term.options.cursorBlink = newCursorBlink;
+        pane.term.options.scrollback = newScrollback;
+      }
+      currentFontSize = newFontSize;
+      if (newTheme !== currentThemeIdx) applyTheme(newTheme);
+      fitAllTerminals();
+
+      // Restart auto-save timer
+      setupAutoSave();
+
+      // Persist
+      settings = {
+        ...settings,
+        theme: currentThemeIdx,
+        fontSize: currentFontSize,
+        fontFamily: newFontFamily,
+        cursorStyle: newCursorStyle,
+        cursorBlink: newCursorBlink,
+        scrollback: newScrollback,
+        bufferLimit: newBufferKB,
+        copyOnSelect,
+        confirmClose,
+        autoSaveSession: document.getElementById("setting-auto-save").checked,
+        autoSaveInterval,
+        shell: document.getElementById("setting-shell").value.trim(),
+        defaultCwd: document.getElementById("setting-cwd").value.trim(),
+      };
+      window.terminator.saveSettings(settings);
+      showToast("Settings saved");
+    }
+
+    function setupAutoSave() {
+      if (autoSaveTimer) clearInterval(autoSaveTimer);
+      if (settings.autoSaveSession !== false) {
+        autoSaveTimer = setInterval(() => { if (panes.size > 0) saveCurrentSession(true); }, autoSaveInterval * 1000);
+      }
+    }
+
+    // Settings event listeners
+    document.getElementById("settings-close").addEventListener("click", closeSettings);
+    // Auto-apply on change
+    ["setting-theme", "setting-font-size", "setting-cursor-style", "setting-scrollback", "setting-buffer-limit", "setting-auto-save-interval"].forEach(id => {
+      document.getElementById(id).addEventListener("change", applySettings);
+    });
+    ["setting-cursor-blink", "setting-copy-on-select", "setting-confirm-close", "setting-auto-save"].forEach(id => {
+      document.getElementById(id).addEventListener("change", applySettings);
+    });
+    document.getElementById("setting-font-family").addEventListener("blur", applySettings);
+    document.getElementById("setting-shell").addEventListener("blur", applySettings);
+    document.getElementById("setting-cwd").addEventListener("blur", applySettings);
+
+    // ============================================================
+    // KEYBINDING EDITOR
+    // ============================================================
+    const defaultKeybindings = {
+      "New Terminal": "Cmd+T",
+      "Split Right": "Cmd+D",
+      "Split Down": "Cmd+Shift+D",
+      "Close Pane": "Cmd+W",
+      "Command Palette": "Cmd+P",
+      "Find": "Cmd+F",
+      "File Finder": "Cmd+Shift+F",
+      "Clear": "Cmd+K",
+      "Zoom": "Cmd+Shift+Enter",
+      "Broadcast": "Cmd+Shift+B",
+      "Snippets": "Cmd+Shift+R",
+      "Save Session": "Cmd+Shift+S",
+      "Quick Command": "Cmd+;",
+      "Settings": "Cmd+,",
+    };
+
+    document.getElementById("setting-edit-keys").addEventListener("click", () => {
+      const list = document.getElementById("keybinding-list");
+      const isVisible = list.style.display !== "none";
+      list.style.display = isVisible ? "none" : "block";
+      if (isVisible) return;
+
+      list.innerHTML = "";
+      for (const [action, defaultKey] of Object.entries(defaultKeybindings)) {
+        const current = customKeybindings[action] || defaultKey;
+        const row = document.createElement("div");
+        row.className = "keybinding-row";
+        row.innerHTML = `<span class="kb-action">${action}</span><span class="kb-key" data-action="${action}">${current}</span>`;
+        const keyEl = row.querySelector(".kb-key");
+        keyEl.addEventListener("click", () => {
+          if (keyEl.classList.contains("recording")) return;
+          keyEl.classList.add("recording");
+          keyEl.textContent = "Press keys...";
+          const handler = (e) => {
+            e.preventDefault(); e.stopPropagation();
+            const parts = [];
+            if (e.metaKey || e.ctrlKey) parts.push("Cmd");
+            if (e.shiftKey) parts.push("Shift");
+            if (e.altKey) parts.push("Alt");
+            if (e.key && !["Meta", "Control", "Shift", "Alt"].includes(e.key)) {
+              parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+            }
+            if (parts.length > 1 || (parts.length === 1 && !["Cmd", "Shift", "Alt"].includes(parts[0]))) {
+              const combo = parts.join("+");
+              keyEl.textContent = combo;
+              keyEl.classList.remove("recording");
+              customKeybindings[action] = combo;
+              settings.keybindings = customKeybindings;
+              window.terminator.saveSettings(settings);
+              document.removeEventListener("keydown", handler, true);
+            }
+          };
+          document.addEventListener("keydown", handler, true);
+          // Cancel on Escape
+          const escHandler = (e) => {
+            if (e.key === "Escape") {
+              keyEl.textContent = customKeybindings[action] || defaultKey;
+              keyEl.classList.remove("recording");
+              document.removeEventListener("keydown", handler, true);
+              document.removeEventListener("keydown", escHandler, true);
+            }
+          };
+          document.addEventListener("keydown", escHandler, true);
+        });
+        list.appendChild(row);
+      }
+    });
+
+    // Add Settings to command palette
+    commands.push(
+      { label: "Settings", shortcut: "Cmd+,", action: () => openSettings(), category: "System" },
+      { label: "Check for Updates", action: async () => {
+        try {
+          const result = await window.terminator.checkForUpdates();
+          if (result.available) showToast(`Update available: v${result.version}`);
+          else showToast(result.reason === "not-packaged" ? "Updates available in packaged builds" : "You're up to date");
+        } catch { showToast("Could not check for updates", "error"); }
+      }, category: "System" }
+    );
+
+    // ============================================================
+    // ONBOARDING (first run)
+    // ============================================================
+    async function checkOnboarding() {
+      try {
+        const s = await window.terminator.loadSettings();
+        if (s && s._onboardingDone) return false;
+        return true;
+      } catch { return false; }
+    }
+
+    function showOnboarding() {
+      const overlay = document.getElementById("onboarding-overlay");
+      overlay.classList.add("visible");
+
+      // Populate theme select
+      const themeSelect = document.getElementById("onboard-theme");
+      themeSelect.innerHTML = "";
+      themes.forEach((t, i) => {
+        const opt = document.createElement("option");
+        opt.value = i; opt.textContent = t.name;
+        themeSelect.appendChild(opt);
+      });
+
+      themeSelect.addEventListener("change", () => {
+        applyTheme(parseInt(themeSelect.value));
+      });
+
+      document.getElementById("onboard-done").addEventListener("click", async () => {
+        const themeIdx = parseInt(themeSelect.value);
+        const fontSize = parseInt(document.getElementById("onboard-font-size").value) || 13;
+        const projName = document.getElementById("onboard-project-name").value.trim();
+        const projPath = document.getElementById("onboard-project-path").value.trim();
+
+        applyTheme(themeIdx);
+        setFontSize(fontSize);
+
+        if (projName && projPath) {
+          launchProjects.push({ name: projName, path: projPath });
+          saveProjects();
+          rebuildLaunchDropdown();
+          rebuildLaunchCommands();
+        }
+
+        settings._onboardingDone = true;
+        settings.theme = themeIdx;
+        settings.fontSize = fontSize;
+        window.terminator.saveSettings(settings);
+
+        overlay.classList.remove("visible");
+        showToast("Welcome to Terminator!");
+      });
+    }
+
+    // ============================================================
+    // KEYBOARD: Settings shortcut
+    // ============================================================
+    // Cmd+, to open settings (added to existing keydown handler below)
+
+    // ============================================================
     // RESIZE & CLEANUP
     // ============================================================
     new ResizeObserver(() => fitAllTerminals()).observe(grid);
@@ -2547,25 +2872,41 @@
       // Auto-save session on close (fire and forget)
       saveCurrentSession(true);
     });
-    // Auto-save session every 60 seconds
-    setInterval(() => { if (panes.size > 0) saveCurrentSession(true); }, 60000);
+    // Auto-save session (configurable interval, set up after settings load)
+    setupAutoSave();
 
     // ============================================================
     // INIT
     // ============================================================
     (async () => {
       try {
-        const [config, savedSnippets, savedProfiles, savedSession] = await Promise.all([
+        const [config, savedSnippets, savedProfiles, savedSession, savedSettings] = await Promise.all([
           window.terminator.loadConfig(),
           window.terminator.loadSnippets(),
           window.terminator.loadProfiles(),
           window.terminator.loadSession(),
+          window.terminator.loadSettings(),
         ]);
         await Promise.all([loadRecentDirs(), loadSshBookmarks(), loadNotes(), loadBookmarks()]);
+
+        // Apply settings
+        if (savedSettings) {
+          settings = savedSettings;
+          if (settings.copyOnSelect !== undefined) copyOnSelect = settings.copyOnSelect;
+          if (settings.confirmClose !== undefined) confirmClose = settings.confirmClose;
+          if (settings.autoSaveInterval) autoSaveInterval = settings.autoSaveInterval;
+          if (settings.bufferLimit) bufferLimit = settings.bufferLimit * 1024;
+          if (settings.keybindings) customKeybindings = settings.keybindings;
+          setupAutoSave();
+        }
+
         if (config) {
           if (config.theme >= 0 && config.theme < themes.length) currentThemeIdx = config.theme;
           if (config.fontSize) currentFontSize = config.fontSize;
         }
+        // Settings override config
+        if (settings.theme >= 0 && settings.theme < themes.length) currentThemeIdx = settings.theme;
+        if (settings.fontSize) currentFontSize = settings.fontSize;
         if (Array.isArray(savedSnippets)) snippets = savedSnippets;
         if (Array.isArray(savedProfiles)) profiles = savedProfiles;
 
@@ -2627,6 +2968,11 @@
         }
         applyTheme(currentThemeIdx);
         updateWelcomeScreen();
+
+        // Check for first-run onboarding
+        if (await checkOnboarding()) {
+          showOnboarding();
+        }
       } catch (err) {
         console.error("Init error:", err);
         try { await addTerminal(); updateWelcomeScreen(); } catch {}

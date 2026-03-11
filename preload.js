@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld("terminator", {
   saveSettings: (data) => ipcRenderer.send("save-settings", data),
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
   getDefaultShell: () => ipcRenderer.invoke("get-default-shell"),
+  checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
   onData: (callback) => ipcRenderer.on("terminal-data", (_, id, data) => callback(id, data)),
   onExit: (callback) => ipcRenderer.on("terminal-exit", (_, id, exitCode) => callback(id, exitCode)),
 });

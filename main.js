@@ -5,6 +5,13 @@ const os = require("os");
 const fs = require("fs");
 const { execFileSync, execSync } = require("child_process");
 
+// Auto-updater (gracefully skip if not packaged)
+let autoUpdater = null;
+try {
+  const { autoUpdater: updater } = require("electron-updater");
+  autoUpdater = updater;
+} catch {}
+
 function log(level, msg, ...args) {
   const timestamp = new Date().toISOString();
   const logLine = `[${timestamp}] [${level}] ${msg}`;
@@ -70,7 +77,28 @@ function createWindow() {
 }
 
 app.whenReady().then(createWindow);
+
+// Auto-update check (only when packaged)
+app.whenReady().then(() => {
+  if (autoUpdater && app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    // Check for updates every 4 hours
+    setInterval(() => {
+      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    }, 4 * 60 * 60 * 1000);
+  }
+});
+
 app.on("window-all-closed", () => app.quit());
+
+// Update status IPC
+ipcMain.handle("check-for-updates", async () => {
+  if (!autoUpdater || !app.isPackaged) return { available: false, reason: "not-packaged" };
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { available: !!result?.updateInfo, version: result?.updateInfo?.version };
+  } catch { return { available: false, reason: "check-failed" }; }
+});
 
 // Create terminal with optional cwd
 ipcMain.handle("create-terminal", (_, cwd) => {
