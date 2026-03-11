@@ -35,12 +35,21 @@ jobs:
 
       - name: Build macOS (DMG + zip)
         run: |
-          if [ -z "$CSC_LINK" ]; then
-            echo "No code signing certificate — building unsigned"
-            export CSC_IDENTITY_AUTO_DISCOVERY=false
-            # Remove afterSign hook for unsigned builds
-            node -e "const p=require('./package.json'); delete p.build.afterSign; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2)+'\n')"
-          fi
+          # Strip afterSign and hardened runtime for unsigned builds
+          node -e "
+            const p = require('./package.json');
+            if (!process.env.CSC_LINK) {
+              delete p.build.afterSign;
+              if (p.build.mac) {
+                p.build.mac.identity = null;
+                delete p.build.mac.hardenedRuntime;
+                delete p.build.mac.gatekeeperAssess;
+                delete p.build.mac.entitlements;
+                delete p.build.mac.entitlementsInherit;
+              }
+            }
+            require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          "
           npx electron-builder --mac dmg zip --publish never
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -131,6 +140,7 @@ jobs:
 
   release:
     name: Publish GitHub Release
+    if: always() && (needs.build-linux.result == 'success' || needs.build-windows.result == 'success' || needs.build-macos.result == 'success')
     needs: [build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
@@ -142,15 +152,17 @@ jobs:
         with:
           path: artifacts
 
+      - name: List artifacts
+        run: find artifacts -type f 2>/dev/null || echo "No artifacts found"
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
           prerelease: false
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
-            artifacts/macos-build/*
-            artifacts/windows-build/*
-            artifacts/linux-build/*
+            artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
