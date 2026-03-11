@@ -13,21 +13,21 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg-deep:#0a0a1a;
+  --bg-deep:#0a0a14;
   --bg-primary:#1a1a2e;
-  --bg-card:#16213e;
-  --bg-card-hover:#1a2745;
-  --accent:#e94560;
-  --accent-glow:rgba(233,69,96,0.4);
-  --blue:#0f3460;
-  --blue-light:#1a5276;
+  --bg-card:#141428;
+  --bg-card-hover:#1a1a35;
+  --accent:#00f0ff;
+  --accent-glow:rgba(0,240,255,0.3);
+  --blue:#0d1b2a;
+  --blue-light:#1b2d45;
   --text:#e8e8f0;
   --text-muted:#8892b0;
   --text-dim:#5a6380;
-  --gradient-primary:linear-gradient(135deg,#e94560 0%,#0f3460 100%);
-  --gradient-hero:linear-gradient(160deg,#0a0a1a 0%,#1a1a2e 40%,#0f3460 100%);
-  --glass:rgba(22,33,62,0.6);
-  --glass-border:rgba(233,69,96,0.15);
+  --gradient-primary:linear-gradient(135deg,#00f0ff 0%,#1a1a2e 100%);
+  --gradient-hero:linear-gradient(160deg,#0a0a14 0%,#1a1a2e 40%,#0d1b2a 100%);
+  --glass:rgba(20,20,40,0.6);
+  --glass-border:rgba(0,240,255,0.12);
   --radius:16px;
   --radius-sm:10px;
   --font-sans:'Inter',system-ui,-apple-system,sans-serif;
@@ -42,7 +42,7 @@ body{
   overflow-x:hidden;
 }
 a{color:var(--accent);text-decoration:none;transition:color .2s}
-a:hover{color:#ff6b81}
+a:hover{color:#66f7ff}
 
 /* ---- Utility ---- */
 .container{max-width:1200px;margin:0 auto;padding:0 24px}
@@ -63,8 +63,8 @@ section{padding:100px 0;text-align:center;position:relative}
 
 /* ---- Background blobs ---- */
 .blob{position:absolute;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0}
-.blob-1{width:600px;height:600px;background:rgba(233,69,96,0.08);top:-200px;left:-200px}
-.blob-2{width:500px;height:500px;background:rgba(15,52,96,0.15);bottom:-150px;right:-150px}
+.blob-1{width:600px;height:600px;background:rgba(0,240,255,0.08);top:-200px;left:-200px}
+.blob-2{width:500px;height:500px;background:rgba(0,240,255,0.15);bottom:-150px;right:-150px}
 
 /* ---- Nav ---- */
 nav{
@@ -98,7 +98,7 @@ nav .links .btn-nav:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(-
 }
 #hero::before{
   content:'';position:absolute;top:50%;left:50%;width:800px;height:800px;
-  background:radial-gradient(circle,rgba(233,69,96,0.07) 0%,transparent 70%);
+  background:radial-gradient(circle,rgba(0,240,255,0.07) 0%,transparent 70%);
   transform:translate(-50%,-50%);pointer-events:none;
 }
 .hero-grid{
@@ -107,14 +107,14 @@ nav .links .btn-nav:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(-
 }
 .hero-icon{
   width:100px;height:100px;margin:0 auto 8px;
-  filter:drop-shadow(0 0 40px rgba(233,69,96,0.3));
+  filter:drop-shadow(0 0 40px rgba(0,240,255,0.25));
   animation:float 6s ease-in-out infinite;
 }
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
 .hero-title{
   font-size:clamp(3rem,8vw,5.5rem);font-weight:800;
   line-height:1.05;letter-spacing:-.03em;
-  background:linear-gradient(135deg,#ffffff 0%,#e94560 50%,#0f3460 100%);
+  background:linear-gradient(135deg,#ffffff 0%,#00f0ff 50%,#0d1b2a 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
   background-clip:text;
 }
@@ -173,7 +173,7 @@ nav .links .btn-nav:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(-
 }
 .feature-card:hover{
   transform:translateY(-4px);
-  border-color:rgba(233,69,96,0.3);
+  border-color:rgba(0,240,255,0.3);
   box-shadow:0 12px 40px rgba(0,0,0,0.3);
 }
 .feature-card:hover::before{opacity:1}
@@ -181,7 +181,7 @@ nav .links .btn-nav:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(-
   width:44px;height:44px;
   display:flex;align-items:center;justify-content:center;
   border-radius:12px;
-  background:linear-gradient(135deg,rgba(233,69,96,0.15),rgba(15,52,96,0.3));
+  background:linear-gradient(135deg,rgba(0,240,255,0.15),rgba(0,240,255,0.3));
   margin-bottom:16px;font-size:1.3rem;
 }
 .feature-card h3{font-size:1.05rem;font-weight:700;margin-bottom:8px;color:#fff}
@@ -195,12 +195,12 @@ nav .links .btn-nav:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(-
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.06),
     0 24px 80px rgba(0,0,0,0.5),
-    0 0 120px rgba(233,69,96,0.08);
+    0 0 120px rgba(0,240,255,0.08);
 }
 .screenshot-wrap img{width:100%;display:block;border-radius:var(--radius)}
 .screenshot-glow{
   position:absolute;top:50%;left:50%;width:120%;height:120%;
-  background:radial-gradient(ellipse,rgba(233,69,96,0.06) 0%,transparent 60%);
+  background:radial-gradient(ellipse,rgba(0,240,255,0.06) 0%,transparent 60%);
   transform:translate(-50%,-50%);pointer-events:none;
 }
 
@@ -214,7 +214,7 @@ nav .links .btn-nav:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(-
 }
 .shortcuts-table table{width:100%;border-collapse:collapse}
 .shortcuts-table th{
-  background:rgba(233,69,96,0.1);
+  background:rgba(0,240,255,0.1);
   font-size:.75rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
   color:var(--accent);padding:14px 20px;
   border-bottom:1px solid rgba(255,255,255,0.06);
@@ -282,7 +282,7 @@ footer{
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
 
 /* selection */
-::selection{background:rgba(233,69,96,0.3)}
+::selection{background:rgba(0,240,255,0.3)}
 </style>
 </head>
 <body>
@@ -294,13 +294,14 @@ footer{
       <svg viewBox="0 0 512 512" width="32" height="32">
         <defs>
           <linearGradient id="nav-bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#e94560"/>
-            <stop offset="100%" stop-color="#0f3460"/>
+            <stop offset="0%" stop-color="#1a1a2e"/>
+            <stop offset="100%" stop-color="#0f0f1e"/>
           </linearGradient>
         </defs>
-        <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#nav-bg)"/>
-        <text x="148" y="296" font-family="monospace" font-size="180" font-weight="700" fill="#fff" text-anchor="middle">&#x203A;</text>
-        <rect x="220" y="270" width="56" height="10" rx="3" fill="#fff" opacity=".9"/>
+        <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#nav-bg)" stroke="rgba(0,240,255,0.15)" stroke-width="4"/>
+        <rect x="128" y="148" width="256" height="6" rx="3" fill="#00f0ff"/>
+        <rect x="253" y="148" width="6" height="220" rx="3" fill="#00f0ff"/>
+        <rect x="240" y="340" width="32" height="6" rx="2" fill="#00f0ff" opacity="0.9"/>
       </svg>
       Terminator
     </a>

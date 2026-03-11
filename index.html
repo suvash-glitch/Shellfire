@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="titlebar">
-    <span class="titlebar-title">Terminator</span>
+    <span class="titlebar-title"><svg class="titlebar-logo" viewBox="0 0 16 16" width="16" height="16"><rect x="3" y="3.5" width="10" height="0.8" rx="0.4" fill="#00f0ff"/><rect x="7.6" y="3.5" width="0.8" height="9.5" rx="0.4" fill="#00f0ff"/><rect x="6.6" y="12" width="2.8" height="0.8" rx="0.3" fill="#00f0ff" opacity="0.9"/></svg>Terminator</span>
 
     <div class="titlebar-group">
       <button class="btn-icon btn-blue" id="btn-add" title="New Terminal  Cmd+T">
@@ -64,7 +64,7 @@
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 010 18" fill="currentColor"/></svg>
       </button>
       <div class="btn-divider"></div>
-      <button class="btn-icon" id="btn-ai-chat" title="AI Chat  Cmd+Shift+A" style="color:#a78bfa">
+      <button class="btn-icon" id="btn-ai-chat" title="AI Chat  Cmd+Shift+A" style="color:#00f0ff">
         <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 017 7c0 3-2 5.5-4.5 6.5L12 22l-2.5-6.5C7 14.5 5 12 5 9a7 7 0 017-7z"/><circle cx="10" cy="9" r="1" fill="currentColor"/><circle cx="14" cy="9" r="1" fill="currentColor"/></svg>
       </button>
       <button class="btn-icon" id="btn-ide-mode" title="IDE Mode  Cmd+Shift+I">
@@ -115,7 +115,7 @@
           <rect x="2" y="14" width="20" height="8" rx="2"/>
           <line x1="6" y1="6" x2="6.01" y2="6"/>
           <line x1="6" y1="18" x2="6.01" y2="18"/>
-          <defs><linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5ac8fa"/><stop offset="100%" stop-color="#bf5af2"/></linearGradient></defs>
+          <defs><linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00f0ff"/><stop offset="100%" stop-color="#00b8d4"/></linearGradient></defs>
         </svg>
         <h3>Connect to Remote</h3>
         <button class="remote-close" id="remote-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
@@ -304,10 +304,10 @@
     <div class="onboarding-card">
       <div class="onboarding-header">
         <svg viewBox="0 0 48 48" width="44" height="44">
-          <rect x="4" y="4" width="40" height="40" rx="10" fill="none" stroke="url(#og)" stroke-width="2.5"/>
-          <polyline points="14 28 20 22 14 16" fill="none" stroke="url(#og)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <line x1="22" y1="30" x2="34" y2="30" stroke="url(#og)" stroke-width="2.5" stroke-linecap="round"/>
-          <defs><linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5ac8fa"/><stop offset="50%" stop-color="#007aff"/><stop offset="100%" stop-color="#bf5af2"/></linearGradient></defs>
+          <rect x="4" y="4" width="40" height="40" rx="10" fill="#1a1a2e" stroke="rgba(0,240,255,0.2)" stroke-width="1.5"/>
+          <rect x="13" y="14" width="22" height="1.5" rx="0.75" fill="#00f0ff"/>
+          <rect x="23.25" y="14" width="1.5" height="20" rx="0.75" fill="#00f0ff"/>
+          <rect x="20.5" y="32" width="7" height="1.5" rx="0.6" fill="#00f0ff" opacity="0.9"/>
         </svg>
         <h2>Welcome to Terminator</h2>
         <p>Let's personalize your experience</p>
@@ -391,7 +391,7 @@
     <div class="side-panel-header">
       <h3>Docker Containers</h3>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="side-panel-close" id="docker-refresh" title="Refresh" style="color:#5ac8fa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></button>
+        <button class="side-panel-close" id="docker-refresh" title="Refresh" style="color:#00f0ff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></button>
         <button class="side-panel-close" id="docker-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>
@@ -403,7 +403,7 @@
     <div class="side-panel-header">
       <h3>AI Chat</h3>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="side-panel-close" id="ai-chat-clear" title="Clear chat" style="color:#5ac8fa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
+        <button class="side-panel-close" id="ai-chat-clear" title="Clear chat" style="color:#00f0ff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>
         <button class="side-panel-close" id="ai-chat-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>
@@ -432,7 +432,7 @@
     <div class="side-panel-header">
       <h3>Ports</h3>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="side-panel-close" id="port-refresh" title="Refresh" style="color:#5ac8fa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></button>
+        <button class="side-panel-close" id="port-refresh" title="Refresh" style="color:#00f0ff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></button>
         <button class="side-panel-close" id="port-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>
@@ -450,7 +450,7 @@
     <div class="side-panel-header">
       <h3>Tailscale Devices</h3>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="side-panel-close" id="tailscale-refresh" title="Refresh" style="color:#5ac8fa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></button>
+        <button class="side-panel-close" id="tailscale-refresh" title="Refresh" style="color:#00f0ff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></button>
         <button class="side-panel-close" id="tailscale-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>
@@ -516,7 +516,7 @@
     <div class="file-preview-header">
       <h3 id="file-preview-name">filename</h3>
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="side-panel-close" id="file-preview-open" title="Open in editor" style="color:#5ac8fa"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+        <button class="side-panel-close" id="file-preview-open" title="Open in editor" style="color:#00f0ff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
         <button class="side-panel-close" id="file-preview-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>
@@ -555,10 +555,10 @@
       <div class="welcome-side">
         <div class="welcome-brand">
           <svg viewBox="0 0 48 48" width="36" height="36">
-            <rect x="4" y="4" width="40" height="40" rx="10" fill="none" stroke="url(#wg)" stroke-width="2.5"/>
-            <polyline points="14 28 20 22 14 16" fill="none" stroke="url(#wg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <line x1="22" y1="30" x2="34" y2="30" stroke="url(#wg)" stroke-width="2.5" stroke-linecap="round"/>
-            <defs><linearGradient id="wg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#5ac8fa"/><stop offset="50%" stop-color="#007aff"/><stop offset="100%" stop-color="#bf5af2"/></linearGradient></defs>
+            <rect x="4" y="4" width="40" height="40" rx="10" fill="#1a1a2e" stroke="rgba(0,240,255,0.2)" stroke-width="1.5"/>
+            <rect x="13" y="14" width="22" height="1.5" rx="0.75" fill="#00f0ff"/>
+            <rect x="23.25" y="14" width="1.5" height="20" rx="0.75" fill="#00f0ff"/>
+            <rect x="20.5" y="32" width="7" height="1.5" rx="0.6" fill="#00f0ff" opacity="0.9"/>
           </svg>
           <span class="welcome-brand-name">Terminator</span>
         </div>

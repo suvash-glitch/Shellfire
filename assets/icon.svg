@@ -1,16 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#007aff"/>
-      <stop offset="100%" stop-color="#bf5af2"/>
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#0f0f1e"/>
     </linearGradient>
     <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.15)"/>
+      <stop offset="0%" stop-color="rgba(255,255,255,0.06)"/>
       <stop offset="50%" stop-color="rgba(255,255,255,0)"/>
     </linearGradient>
-    <clipPath id="roundClip">
-      <rect x="16" y="16" width="480" height="480" rx="96" ry="96"/>
-    </clipPath>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="100%" stop-color="#00b8d4"/>
+    </linearGradient>
   </defs>
 
   <!-- Rounded rectangle background -->
@@ -19,31 +20,32 @@
   <!-- Subtle top shine overlay -->
   <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#shine)"/>
 
-  <!-- Split-pane divider lines (multiplexer grid) -->
-  <!-- Vertical divider -->
-  <line x1="256" y1="120" x2="256" y2="392" stroke="rgba(255,255,255,0.12)" stroke-width="2" stroke-linecap="round"/>
-  <!-- Horizontal divider on right pane -->
-  <line x1="256" y1="256" x2="400" y2="256" stroke="rgba(255,255,255,0.12)" stroke-width="2" stroke-linecap="round"/>
+  <!-- Subtle border -->
+  <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="none" stroke="rgba(0,240,255,0.1)" stroke-width="1.5"/>
 
-  <!-- Terminal prompt ">" character -->
-  <text x="148" y="296" font-family="'SF Mono', 'Menlo', 'Consolas', monospace" font-size="180" font-weight="700" fill="#ffffff" text-anchor="middle">&#x203A;</text>
+  <!-- Stylized "T" formed by terminal grid lines -->
+  <!-- Horizontal bar of the T -->
+  <rect x="128" y="148" width="256" height="6" rx="3" fill="url(#accent)"/>
 
-  <!-- Blinking cursor underscore -->
-  <rect x="220" y="270" width="56" height="10" rx="3" ry="3" fill="#ffffff" opacity="0.9">
+  <!-- Vertical stem of the T -->
+  <rect x="253" y="148" width="6" height="220" rx="3" fill="url(#accent)"/>
+
+  <!-- Terminal cursor block blinking at the bottom of the T stem -->
+  <rect x="240" y="340" width="32" height="6" rx="2" fill="#00f0ff" opacity="0.9">
     <animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.2s" repeatCount="indefinite"/>
   </rect>
 
-  <!-- Small prompt hints in sub-panes (top-right pane) -->
-  <rect x="280" y="156" width="28" height="4" rx="2" fill="rgba(255,255,255,0.35)"/>
-  <rect x="314" y="156" width="44" height="4" rx="2" fill="rgba(255,255,255,0.2)"/>
-  <rect x="280" y="168" width="52" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
-  <rect x="280" y="180" width="20" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
-  <rect x="306" y="180" width="36" height="4" rx="2" fill="rgba(255,255,255,0.15)"/>
+  <!-- Subtle grid dots suggesting terminal grid (left of T) -->
+  <circle cx="152" cy="200" r="2" fill="rgba(0,240,255,0.15)"/>
+  <circle cx="152" cy="228" r="2" fill="rgba(0,240,255,0.1)"/>
+  <circle cx="152" cy="256" r="2" fill="rgba(0,240,255,0.08)"/>
+  <circle cx="180" cy="200" r="2" fill="rgba(0,240,255,0.12)"/>
+  <circle cx="180" cy="228" r="2" fill="rgba(0,240,255,0.08)"/>
 
-  <!-- Small prompt hints in sub-panes (bottom-right pane) -->
-  <rect x="280" y="284" width="36" height="4" rx="2" fill="rgba(255,255,255,0.35)"/>
-  <rect x="322" y="284" width="24" height="4" rx="2" fill="rgba(255,255,255,0.2)"/>
-  <rect x="280" y="296" width="48" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
-  <rect x="280" y="308" width="16" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
-  <rect x="302" y="308" width="40" height="4" rx="2" fill="rgba(255,255,255,0.15)"/>
+  <!-- Subtle grid dots (right of T) -->
+  <circle cx="360" cy="200" r="2" fill="rgba(0,240,255,0.15)"/>
+  <circle cx="360" cy="228" r="2" fill="rgba(0,240,255,0.1)"/>
+  <circle cx="360" cy="256" r="2" fill="rgba(0,240,255,0.08)"/>
+  <circle cx="332" cy="200" r="2" fill="rgba(0,240,255,0.12)"/>
+  <circle cx="332" cy="228" r="2" fill="rgba(0,240,255,0.08)"/>
 </svg>
