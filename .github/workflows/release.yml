@@ -34,7 +34,12 @@ jobs:
         run: npm ci
 
       - name: Build macOS (DMG + zip)
-        run: npx electron-builder --mac dmg zip --publish never
+        run: |
+          if [ -n "$CSC_LINK" ]; then
+            npx electron-builder --mac dmg zip --publish never
+          else
+            CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dmg zip --publish never
+          fi
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
