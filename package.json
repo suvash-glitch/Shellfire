@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "A modern terminal multiplexer built with Electron",
   "main": "main.js",
-  "author": "Suvash Bhusal",
+  "author": {
+    "name": "Suvash Bhusal",
+    "email": "suvash@terminator.dev"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
