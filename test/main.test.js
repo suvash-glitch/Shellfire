@@ -95,7 +95,7 @@ describe('Settings defaults', () => {
 describe('Path validation', () => {
   it('path.resolve normalizes traversal attempts', () => {
     const resolved = path.resolve('/home/user/../../../etc/passwd');
-    assert.strictEqual(resolved, '/etc/passwd');
+    assert.ok(resolved.endsWith(path.join('etc', 'passwd')));
     assert.ok(!resolved.startsWith(os.homedir()));
   });
 

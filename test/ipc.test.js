@@ -187,9 +187,10 @@ describe('Pipeline step validation', () => {
   });
 
   it('accepts valid command with explicit cwd', () => {
-    const result = validatePipelineStep('ls -la', '/tmp');
+    const tmpDir = os.tmpdir();
+    const result = validatePipelineStep('ls -la', tmpDir);
     assert.strictEqual(result.valid, true);
-    assert.strictEqual(result.cwd, '/tmp');
+    assert.strictEqual(result.cwd, path.resolve(tmpDir));
   });
 
   it('rejects empty string command', () => {
