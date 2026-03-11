@@ -946,9 +946,12 @@ ipcMain.handle("ssh-remote-list", async (_, { host, user, port, password, remote
   const sshArgs = [
     "-o", "ConnectTimeout=10",
     "-o", "StrictHostKeyChecking=accept-new",
-    "-o", "PreferredAuthentications=password,keyboard-interactive",
-    "-o", "PubkeyAuthentication=no",
   ];
+  // Only restrict to password auth if a password was explicitly provided
+  if (password) {
+    sshArgs.push("-o", "PreferredAuthentications=password,keyboard-interactive");
+    sshArgs.push("-o", "PubkeyAuthentication=no");
+  }
   if (port && port !== 22) sshArgs.push("-p", String(port));
   sshArgs.push(`${user}@${host}`);
 
