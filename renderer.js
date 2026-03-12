@@ -3131,73 +3131,9 @@
     }
 
     // ============================================================
-    // EXTENSIONS / PLUGINS PANEL
+    // EXTENSIONS / PLUGINS
     // ============================================================
-    const pluginsPanel = document.getElementById("plugins-panel");
-    const pluginsBody = document.getElementById("plugins-body");
     let pluginsNeedRestart = false;
-
-    function openPluginsPanel() {
-      pluginsPanel.classList.add("visible");
-      refreshPluginsPanel();
-    }
-
-    function closePluginsPanel() {
-      pluginsPanel.classList.remove("visible");
-      if (activeId && panes.has(activeId)) panes.get(activeId).term.focus();
-    }
-
-    async function refreshPluginsPanel() {
-      pluginsBody.innerHTML = '<div class="plugins-empty">Loading extensions...</div>';
-      try {
-        const [available, installed] = await Promise.all([
-          window.terminator.listAvailablePlugins(),
-          window.terminator.loadPlugins(),
-        ]);
-        const installedNames = new Set(installed.map(p => p.manifest.name));
-        pluginsBody.innerHTML = "";
-
-        if (pluginsNeedRestart) {
-          const notice = document.createElement("div");
-          notice.className = "plugin-restart-notice";
-          notice.textContent = "Restart Terminator to apply changes";
-          pluginsBody.appendChild(notice);
-        }
-
-        // Available plugins (from bundled store)
-        if (available.length > 0) {
-          const title = document.createElement("div");
-          title.className = "plugins-section-title";
-          title.textContent = "Available Extensions";
-          pluginsBody.appendChild(title);
-
-          for (const plugin of available) {
-            const card = createPluginCard(plugin.manifest, plugin.dir, installedNames.has(plugin.manifest.name));
-            pluginsBody.appendChild(card);
-          }
-        }
-
-        // Installed plugins that aren't in the bundled store
-        const customInstalled = installed.filter(p => !available.find(a => a.manifest.name === p.manifest.name));
-        if (customInstalled.length > 0) {
-          const title = document.createElement("div");
-          title.className = "plugins-section-title";
-          title.textContent = "Custom Plugins";
-          pluginsBody.appendChild(title);
-
-          for (const plugin of customInstalled) {
-            const card = createPluginCard(plugin.manifest, plugin.dir, true);
-            pluginsBody.appendChild(card);
-          }
-        }
-
-        if (available.length === 0 && customInstalled.length === 0) {
-          pluginsBody.innerHTML = '<div class="plugins-empty">No extensions available</div>';
-        }
-      } catch (err) {
-        pluginsBody.innerHTML = `<div class="plugins-empty">Error loading extensions: ${err.message}</div>`;
-      }
-    }
 
     function createPluginCard(manifest, dir, isInstalled) {
       const card = document.createElement("div");
@@ -3273,8 +3209,6 @@
       return card;
     }
 
-    document.getElementById("plugins-close").addEventListener("click", closePluginsPanel);
-    document.getElementById("plugins-refresh").addEventListener("click", refreshPluginsPanel);
 
     // ============================================================
     // PIPELINE RUNNER (agent-ad954acf)
@@ -4440,9 +4374,9 @@
     // ============================================================
     // SETTINGS UI
     // ============================================================
-    function openSettings() {
-      const panel = document.getElementById("settings-panel");
-      panel.classList.add("visible");
+    function openSettings(tabName) {
+      const overlay = document.getElementById("settings-overlay");
+      overlay.classList.add("visible");
 
       // Populate theme dropdown
       const themeSelect = document.getElementById("setting-theme");
@@ -4473,24 +4407,159 @@
       window.terminator.getAppVersion().then(v => { document.getElementById("setting-version").textContent = v; }).catch(() => {});
       window.terminator.getDefaultShell().then(s => { document.getElementById("setting-detected-shell").textContent = s; }).catch(() => {});
 
+      // Keybindings — auto-populate
+      populateKeybindingList();
+
       // Mount extension settings sections (once)
       for (const sec of _extSettingsSections) {
         if (!sec._mounted) {
-          const settingsContent = document.querySelector("#settings-panel .settings-content");
-          if (settingsContent) {
+          // Find the appropriate tab to inject into (e.g. create a new tab or inject into existing)
+          const extTab = document.querySelector('.settings-tab[data-tab="extensions"] .settings-group');
+          if (extTab) {
             const container = document.createElement("div");
             container.innerHTML = sec.html;
-            settingsContent.appendChild(container);
+            extTab.appendChild(container);
             sec._mounted = true;
           }
         }
         if (sec.onMount) sec.onMount();
       }
+
+      // Load extensions list into settings
+      refreshSettingsExtensions();
+
+      // Switch to requested tab
+      if (tabName) switchSettingsTab(tabName);
+
+      // Clear search
+      document.getElementById("settings-search").value = "";
+      clearSettingsSearch();
     }
 
     function closeSettings() {
-      document.getElementById("settings-panel").classList.remove("visible");
+      document.getElementById("settings-overlay").classList.remove("visible");
       if (activeId && panes.has(activeId)) panes.get(activeId).term.focus();
+    }
+
+    function switchSettingsTab(tabName) {
+      document.querySelectorAll(".settings-nav-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.tab === tabName);
+      });
+      document.querySelectorAll(".settings-tab").forEach(tab => {
+        tab.classList.toggle("active", tab.dataset.tab === tabName);
+      });
+    }
+
+    function clearSettingsSearch() {
+      document.querySelectorAll(".settings-row[data-search]").forEach(row => {
+        row.classList.remove("search-hidden");
+      });
+      document.querySelectorAll(".settings-tab").forEach(tab => {
+        tab.classList.remove("search-active");
+      });
+    }
+
+    function searchSettings(query) {
+      const q = query.toLowerCase().trim();
+      if (!q) { clearSettingsSearch(); return; }
+
+      // Show all tabs during search
+      document.querySelectorAll(".settings-tab").forEach(tab => {
+        tab.classList.add("active", "search-active");
+      });
+      document.querySelectorAll(".settings-nav-item").forEach(item => {
+        item.classList.remove("active");
+      });
+
+      // Filter rows
+      document.querySelectorAll(".settings-row[data-search]").forEach(row => {
+        const text = (row.dataset.search + " " + row.textContent).toLowerCase();
+        row.classList.toggle("search-hidden", !text.includes(q));
+      });
+    }
+
+    function populateKeybindingList() {
+      const list = document.getElementById("keybinding-list");
+      list.innerHTML = "";
+      const defaultKeybindings = {
+        "New Terminal": "Cmd+T", "Split Right": "Cmd+D", "Split Down": "Cmd+Shift+D",
+        "Close Pane": "Cmd+W", "Command Palette": "Cmd+P", "Find": "Cmd+F",
+        "Clear": "Cmd+K", "Zoom": "Cmd+Shift+Enter", "Broadcast": "Cmd+Shift+B",
+        "Snippets": "Cmd+Shift+R", "Save Session": "Cmd+Shift+S",
+        "Quick Command": "Cmd+;", "Settings": "Cmd+,", "IDE Mode": "Cmd+Shift+I",
+      };
+      for (const [action, defaultKey] of Object.entries(defaultKeybindings)) {
+        const current = customKeybindings[action] || defaultKey;
+        const row = document.createElement("div");
+        row.className = "keybinding-row";
+        row.innerHTML = `<span class="kb-action">${action}</span><span class="kb-key" data-action="${action}">${current}</span>`;
+        const keyEl = row.querySelector(".kb-key");
+        keyEl.addEventListener("click", () => {
+          if (keyEl.classList.contains("recording")) { keyEl.classList.remove("recording"); keyEl.textContent = current; return; }
+          keyEl.classList.add("recording");
+          keyEl.textContent = "Press keys...";
+          const handler = (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (e.key === "Escape") { keyEl.classList.remove("recording"); keyEl.textContent = current; document.removeEventListener("keydown", handler, true); return; }
+            const parts = [];
+            if (e.metaKey || e.ctrlKey) parts.push("Cmd");
+            if (e.shiftKey) parts.push("Shift");
+            if (e.altKey) parts.push("Alt");
+            if (!["Meta", "Control", "Shift", "Alt"].includes(e.key)) parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+            if (parts.length > 0 && !["Cmd", "Shift", "Alt"].includes(parts[parts.length - 1])) {
+              const combo = parts.join("+");
+              customKeybindings[action] = combo;
+              keyEl.textContent = combo;
+              keyEl.classList.remove("recording");
+              document.removeEventListener("keydown", handler, true);
+              settings.keybindings = customKeybindings;
+              window.terminator.saveSettings(settings);
+            }
+          };
+          document.addEventListener("keydown", handler, true);
+        });
+        list.appendChild(row);
+      }
+    }
+
+    async function refreshSettingsExtensions() {
+      const body = document.getElementById("settings-extensions-body");
+      if (!body) return;
+      // Keep the description paragraph, clear plugin cards
+      const existing = body.querySelectorAll(".plugin-card, .plugins-section-title, .plugin-restart-notice");
+      existing.forEach(el => el.remove());
+
+      try {
+        const [available, installed] = await Promise.all([
+          window.terminator.listAvailablePlugins(),
+          window.terminator.loadPlugins(),
+        ]);
+        const installedNames = new Set(installed.map(p => p.manifest.name));
+
+        if (pluginsNeedRestart) {
+          const notice = document.createElement("div");
+          notice.className = "plugin-restart-notice";
+          notice.textContent = "Restart Terminator to apply extension changes";
+          body.appendChild(notice);
+        }
+
+        for (const plugin of available) {
+          const card = createPluginCard(plugin.manifest, plugin.dir, installedNames.has(plugin.manifest.name));
+          body.appendChild(card);
+        }
+
+        const customInstalled = installed.filter(p => !available.find(a => a.manifest.name === p.manifest.name));
+        if (customInstalled.length > 0) {
+          const title = document.createElement("div");
+          title.className = "plugins-section-title";
+          title.textContent = "Custom Plugins";
+          body.appendChild(title);
+          for (const plugin of customInstalled) {
+            const card = createPluginCard(plugin.manifest, plugin.dir, true);
+            body.appendChild(card);
+          }
+        }
+      } catch {}
     }
 
     function applySettings() {
@@ -4554,6 +4623,21 @@
 
     // Settings event listeners
     document.getElementById("settings-close").addEventListener("click", closeSettings);
+    document.getElementById("settings-overlay").addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) closeSettings();
+    });
+    // Tab switching
+    document.querySelectorAll(".settings-nav-item").forEach(item => {
+      item.addEventListener("click", () => {
+        document.getElementById("settings-search").value = "";
+        clearSettingsSearch();
+        switchSettingsTab(item.dataset.tab);
+      });
+    });
+    // Search
+    document.getElementById("settings-search").addEventListener("input", (e) => {
+      searchSettings(e.target.value);
+    });
     // Auto-apply on change
     ["setting-theme", "setting-font-size", "setting-cursor-style", "setting-scrollback", "setting-buffer-limit", "setting-auto-save-interval"].forEach(id => {
       document.getElementById(id).addEventListener("change", applySettings);
@@ -4586,62 +4670,12 @@
       "IDE Mode": "Cmd+Shift+I",
     };
 
-    document.getElementById("setting-edit-keys").addEventListener("click", () => {
-      const list = document.getElementById("keybinding-list");
-      const isVisible = list.style.display !== "none";
-      list.style.display = isVisible ? "none" : "block";
-      if (isVisible) return;
-
-      list.innerHTML = "";
-      for (const [action, defaultKey] of Object.entries(defaultKeybindings)) {
-        const current = customKeybindings[action] || defaultKey;
-        const row = document.createElement("div");
-        row.className = "keybinding-row";
-        row.innerHTML = `<span class="kb-action">${action}</span><span class="kb-key" data-action="${action}">${current}</span>`;
-        const keyEl = row.querySelector(".kb-key");
-        keyEl.addEventListener("click", () => {
-          if (keyEl.classList.contains("recording")) return;
-          keyEl.classList.add("recording");
-          keyEl.textContent = "Press keys...";
-          const handler = (e) => {
-            e.preventDefault(); e.stopPropagation();
-            const parts = [];
-            if (e.metaKey || e.ctrlKey) parts.push("Cmd");
-            if (e.shiftKey) parts.push("Shift");
-            if (e.altKey) parts.push("Alt");
-            if (e.key && !["Meta", "Control", "Shift", "Alt"].includes(e.key)) {
-              parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
-            }
-            if (parts.length > 1 || (parts.length === 1 && !["Cmd", "Shift", "Alt"].includes(parts[0]))) {
-              const combo = parts.join("+");
-              keyEl.textContent = combo;
-              keyEl.classList.remove("recording");
-              customKeybindings[action] = combo;
-              settings.keybindings = customKeybindings;
-              window.terminator.saveSettings(settings);
-              document.removeEventListener("keydown", handler, true);
-            }
-          };
-          document.addEventListener("keydown", handler, true);
-          // Cancel on Escape
-          const escHandler = (e) => {
-            if (e.key === "Escape") {
-              keyEl.textContent = customKeybindings[action] || defaultKey;
-              keyEl.classList.remove("recording");
-              document.removeEventListener("keydown", handler, true);
-              document.removeEventListener("keydown", escHandler, true);
-            }
-          };
-          document.addEventListener("keydown", escHandler, true);
-        });
-        list.appendChild(row);
-      }
-    });
+    // Keybinding editor is now populated in openSettings -> populateKeybindingList()
 
     // Add Settings to command palette
     commands.push(
       { label: "Settings", shortcut: "Cmd+,", action: () => openSettings(), category: "System" },
-      { label: "Extensions", action: () => openPluginsPanel(), category: "System" },
+      { label: "Extensions", action: () => openSettings("extensions"), category: "System" },
       { label: "Check for Updates", action: async () => {
         try {
           const result = await window.terminator.checkForUpdates();

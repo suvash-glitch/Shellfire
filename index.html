@@ -173,99 +173,221 @@
   <div class="context-menu" id="context-menu"></div>
   <div class="toast" id="toast"></div>
 
-  <!-- Settings Panel -->
-  <div class="side-panel" id="settings-panel">
-    <div class="side-panel-header">
-      <h3>Settings</h3>
-      <button class="side-panel-close" id="settings-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-    </div>
-    <div class="side-panel-body" id="settings-body">
-      <div class="settings-section">
-        <div class="settings-section-title">Appearance</div>
-        <div class="settings-row">
-          <label>Theme</label>
-          <select id="setting-theme" class="settings-select"></select>
+  <!-- Settings Modal (IntelliJ-style) -->
+  <div class="settings-overlay" id="settings-overlay">
+    <div class="settings-modal" id="settings-panel">
+      <div class="settings-modal-header">
+        <h2>Settings</h2>
+        <div class="settings-search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="settings-search" class="settings-search" placeholder="Search settings..." />
         </div>
-        <div class="settings-row">
-          <label>Font Size</label>
-          <input type="number" id="setting-font-size" class="settings-input" min="8" max="24" value="13" />
-        </div>
-        <div class="settings-row">
-          <label>Font Family</label>
-          <input type="text" id="setting-font-family" class="settings-input-wide" value='"SF Mono", "Menlo", "Monaco", "Courier New", monospace' />
-        </div>
-        <div class="settings-row">
-          <label>Cursor Style</label>
-          <select id="setting-cursor-style" class="settings-select">
-            <option value="block">Block</option>
-            <option value="underline">Underline</option>
-            <option value="bar">Bar</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <label>Cursor Blink</label>
-          <input type="checkbox" id="setting-cursor-blink" checked />
-        </div>
+        <button class="settings-modal-close" id="settings-close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Terminal</div>
-        <div class="settings-row">
-          <label>Default Shell</label>
-          <input type="text" id="setting-shell" class="settings-input-wide" placeholder="Auto-detect" />
+      <div class="settings-modal-body">
+        <div class="settings-nav">
+          <div class="settings-nav-item active" data-tab="appearance">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <span>Appearance</span>
+          </div>
+          <div class="settings-nav-item" data-tab="terminal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            <span>Terminal</span>
+          </div>
+          <div class="settings-nav-item" data-tab="behavior">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <span>Behavior</span>
+          </div>
+          <div class="settings-nav-item" data-tab="keybindings">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg>
+            <span>Keybindings</span>
+          </div>
+          <div class="settings-nav-item" data-tab="extensions">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            <span>Extensions</span>
+          </div>
+          <div class="settings-nav-divider"></div>
+          <div class="settings-nav-item" data-tab="about">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>About</span>
+          </div>
         </div>
-        <div class="settings-row">
-          <label>Default Directory</label>
-          <input type="text" id="setting-cwd" class="settings-input-wide" placeholder="Home directory" />
-        </div>
-        <div class="settings-row">
-          <label>Scrollback Lines</label>
-          <input type="number" id="setting-scrollback" class="settings-input" min="1000" max="100000" value="10000" step="1000" />
-        </div>
-        <div class="settings-row">
-          <label>Buffer Limit (KB)</label>
-          <input type="number" id="setting-buffer-limit" class="settings-input" min="64" max="2048" value="512" step="64" />
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Behavior</div>
-        <div class="settings-row">
-          <label>Copy on Select</label>
-          <input type="checkbox" id="setting-copy-on-select" checked />
-        </div>
-        <div class="settings-row">
-          <label>Confirm Close</label>
-          <input type="checkbox" id="setting-confirm-close" checked />
-        </div>
-        <div class="settings-row">
-          <label>Auto-save Session</label>
-          <input type="checkbox" id="setting-auto-save" checked />
-        </div>
-        <div class="settings-row">
-          <label>Auto-save Interval (sec)</label>
-          <input type="number" id="setting-auto-save-interval" class="settings-input" min="10" max="600" value="60" step="10" />
-        </div>
-        <div class="settings-row">
-          <label>IDE Mode (sidebar)</label>
-          <input type="checkbox" id="setting-ide-mode" />
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Keyboard Shortcuts</div>
-        <div class="settings-row">
-          <label>Customize keybindings</label>
-          <button class="settings-btn" id="setting-edit-keys">Edit Keybindings</button>
-        </div>
-        <div id="keybinding-list" class="keybinding-list" style="display:none"></div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">About</div>
-        <div class="settings-row">
-          <label>Version</label>
-          <span id="setting-version" class="settings-value">--</span>
-        </div>
-        <div class="settings-row">
-          <label>Shell</label>
-          <span id="setting-detected-shell" class="settings-value">--</span>
+        <div class="settings-content" id="settings-body">
+          <!-- Appearance -->
+          <div class="settings-tab active" data-tab="appearance">
+            <div class="settings-tab-title">Appearance</div>
+            <div class="settings-group">
+              <div class="settings-row" data-search="theme color scheme dark light solarized dracula monokai nord">
+                <div class="settings-row-label">
+                  <label>Theme</label>
+                  <span class="settings-row-hint">Color scheme for the terminal and UI</span>
+                </div>
+                <select id="setting-theme" class="settings-select"></select>
+              </div>
+              <div class="settings-row" data-search="font size text">
+                <div class="settings-row-label">
+                  <label>Font Size</label>
+                  <span class="settings-row-hint">Terminal text size in pixels</span>
+                </div>
+                <input type="number" id="setting-font-size" class="settings-input" min="8" max="24" value="13" />
+              </div>
+              <div class="settings-row" data-search="font family typeface monospace">
+                <div class="settings-row-label">
+                  <label>Font Family</label>
+                  <span class="settings-row-hint">Monospace font for the terminal</span>
+                </div>
+                <input type="text" id="setting-font-family" class="settings-input-wide" value='"SF Mono", "Menlo", "Monaco", "Courier New", monospace' />
+              </div>
+              <div class="settings-row" data-search="cursor style block underline bar">
+                <div class="settings-row-label">
+                  <label>Cursor Style</label>
+                  <span class="settings-row-hint">Shape of the terminal cursor</span>
+                </div>
+                <select id="setting-cursor-style" class="settings-select">
+                  <option value="block">Block</option>
+                  <option value="underline">Underline</option>
+                  <option value="bar">Bar</option>
+                </select>
+              </div>
+              <div class="settings-row" data-search="cursor blink animation">
+                <div class="settings-row-label">
+                  <label>Cursor Blink</label>
+                  <span class="settings-row-hint">Animate the cursor</span>
+                </div>
+                <input type="checkbox" id="setting-cursor-blink" checked />
+              </div>
+            </div>
+          </div>
+
+          <!-- Terminal -->
+          <div class="settings-tab" data-tab="terminal">
+            <div class="settings-tab-title">Terminal</div>
+            <div class="settings-group">
+              <div class="settings-row" data-search="shell zsh bash fish default">
+                <div class="settings-row-label">
+                  <label>Default Shell</label>
+                  <span class="settings-row-hint">Leave empty to auto-detect from system</span>
+                </div>
+                <input type="text" id="setting-shell" class="settings-input-wide" placeholder="Auto-detect" />
+              </div>
+              <div class="settings-row" data-search="directory cwd working path home">
+                <div class="settings-row-label">
+                  <label>Default Directory</label>
+                  <span class="settings-row-hint">Starting directory for new terminals</span>
+                </div>
+                <input type="text" id="setting-cwd" class="settings-input-wide" placeholder="Home directory" />
+              </div>
+              <div class="settings-row" data-search="scrollback lines buffer history">
+                <div class="settings-row-label">
+                  <label>Scrollback Lines</label>
+                  <span class="settings-row-hint">Number of lines kept in scroll history</span>
+                </div>
+                <input type="number" id="setting-scrollback" class="settings-input" min="1000" max="100000" value="10000" step="1000" />
+              </div>
+              <div class="settings-row" data-search="buffer limit memory size">
+                <div class="settings-row-label">
+                  <label>Buffer Limit (KB)</label>
+                  <span class="settings-row-hint">Maximum buffer size per terminal</span>
+                </div>
+                <input type="number" id="setting-buffer-limit" class="settings-input" min="64" max="2048" value="512" step="64" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Behavior -->
+          <div class="settings-tab" data-tab="behavior">
+            <div class="settings-tab-title">Behavior</div>
+            <div class="settings-group">
+              <div class="settings-row" data-search="copy select clipboard">
+                <div class="settings-row-label">
+                  <label>Copy on Select</label>
+                  <span class="settings-row-hint">Automatically copy selected text to clipboard</span>
+                </div>
+                <input type="checkbox" id="setting-copy-on-select" checked />
+              </div>
+              <div class="settings-row" data-search="confirm close exit quit">
+                <div class="settings-row-label">
+                  <label>Confirm Close</label>
+                  <span class="settings-row-hint">Ask before closing a terminal with running processes</span>
+                </div>
+                <input type="checkbox" id="setting-confirm-close" checked />
+              </div>
+              <div class="settings-row" data-search="auto save session restore">
+                <div class="settings-row-label">
+                  <label>Auto-save Session</label>
+                  <span class="settings-row-hint">Periodically save workspace layout and state</span>
+                </div>
+                <input type="checkbox" id="setting-auto-save" checked />
+              </div>
+              <div class="settings-row" data-search="auto save interval timer seconds">
+                <div class="settings-row-label">
+                  <label>Auto-save Interval</label>
+                  <span class="settings-row-hint">Time between auto-saves in seconds</span>
+                </div>
+                <input type="number" id="setting-auto-save-interval" class="settings-input" min="10" max="600" value="60" step="10" />
+              </div>
+              <div class="settings-row" data-search="ide mode sidebar project">
+                <div class="settings-row-label">
+                  <label>IDE Mode</label>
+                  <span class="settings-row-hint">Show project sidebar like an IDE</span>
+                </div>
+                <input type="checkbox" id="setting-ide-mode" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Keybindings -->
+          <div class="settings-tab" data-tab="keybindings">
+            <div class="settings-tab-title">Keyboard Shortcuts</div>
+            <div class="settings-group">
+              <p style="font-size:12px;color:#888;margin-bottom:12px">Click a shortcut to record a new binding. Press Escape to cancel.</p>
+              <div id="keybinding-list" class="keybinding-list"></div>
+            </div>
+          </div>
+
+          <!-- Extensions -->
+          <div class="settings-tab" data-tab="extensions">
+            <div class="settings-tab-title">Extensions</div>
+            <div class="settings-group" id="settings-extensions-body">
+              <p style="font-size:12px;color:#888;margin-bottom:12px">Install and manage extensions to add new features.</p>
+            </div>
+          </div>
+
+          <!-- About -->
+          <div class="settings-tab" data-tab="about">
+            <div class="settings-tab-title">About</div>
+            <div class="settings-group">
+              <div class="settings-row">
+                <div class="settings-row-label">
+                  <label>Version</label>
+                  <span class="settings-row-hint">Terminator app version</span>
+                </div>
+                <span id="setting-version" class="settings-value">--</span>
+              </div>
+              <div class="settings-row">
+                <div class="settings-row-label">
+                  <label>Detected Shell</label>
+                  <span class="settings-row-hint">System default shell</span>
+                </div>
+                <span id="setting-detected-shell" class="settings-value">--</span>
+              </div>
+              <div class="about-branding">
+                <svg viewBox="0 0 512 512" width="48" height="48" style="margin-bottom:12px;filter:drop-shadow(0 0 20px rgba(0,240,255,0.2))">
+                  <defs><linearGradient id="ab-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1a1a2e"/><stop offset="100%" stop-color="#0f0f1e"/></linearGradient></defs>
+                  <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#ab-bg)" stroke="rgba(0,240,255,0.15)" stroke-width="4"/>
+                  <rect x="128" y="148" width="256" height="6" rx="3" fill="#00f0ff"/>
+                  <rect x="253" y="148" width="6" height="220" rx="3" fill="#00f0ff"/>
+                  <rect x="240" y="340" width="32" height="6" rx="2" fill="#00f0ff" opacity="0.9"/>
+                </svg>
+                <div style="font-size:13px;color:#ccc;font-weight:600">Terminator</div>
+                <div style="font-size:11px;color:#666;margin-top:4px">AI-Powered Terminal Multiplexer</div>
+                <div style="font-size:10px;color:#555;margin-top:8px">Built with Electron, xterm.js, node-pty</div>
+                <div style="font-size:10px;color:#444;margin-top:4px">&copy; 2026 Suvash Bhusal &middot; MIT License</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -412,18 +534,6 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Plugins panel -->
-  <div class="side-panel" id="plugins-panel">
-    <div class="side-panel-header">
-      <h3>Extensions</h3>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="side-panel-close" id="plugins-refresh" title="Refresh" style="color:#00f0ff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></button>
-        <button class="side-panel-close" id="plugins-close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      </div>
-    </div>
-    <div class="side-panel-body" id="plugins-body"></div>
   </div>
 
   <!-- Pipeline Runner panel -->
