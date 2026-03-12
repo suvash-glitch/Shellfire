@@ -47,6 +47,9 @@
       get allPaneIds() { return [...panes.keys()]; },
       get fontSize() { return currentFontSize; },
       get broadcastMode() { return broadcastMode; },
+      get skipPermissions() { return skipPermissions; },
+      set skipPermissions(val) { skipPermissions = !!val; },
+      toggleSkipPermissions() { toggleSkipPermissions(); },
       sendInput(id, data) { window.terminator.sendInput(id, data); },
       broadcast(ids, data) { window.terminator.broadcast(ids, data); },
       showToast(msg) { showToast(msg); },
@@ -402,8 +405,10 @@
 
     function toggleSkipPermissions() {
       skipPermissions = !skipPermissions;
-      document.getElementById("btn-skip-perms").classList.toggle("active-toggle", skipPermissions);
-      document.getElementById("skip-perms-indicator").classList.toggle("visible", skipPermissions);
+      const btn = document.getElementById("btn-skip-perms");
+      if (btn) btn.classList.toggle("active-toggle", skipPermissions);
+      const indicator = document.getElementById("skip-perms-indicator");
+      if (indicator) indicator.classList.toggle("visible", skipPermissions);
       showToast(skipPermissions ? "Skip Permissions ON" : "Skip Permissions OFF");
     }
 
@@ -1744,7 +1749,9 @@
     document.getElementById("btn-add").addEventListener("click", () => addTerminal());
     document.getElementById("btn-split-h").addEventListener("click", () => splitPane("horizontal"));
     document.getElementById("btn-split-v").addEventListener("click", () => splitPane("vertical"));
-    document.getElementById("btn-skip-perms").addEventListener("click", toggleSkipPermissions);
+    // btn-skip-perms now injected by claude-ai extension
+    const _btnSkipPerms = document.getElementById("btn-skip-perms");
+    if (_btnSkipPerms) _btnSkipPerms.addEventListener("click", toggleSkipPermissions);
     document.getElementById("btn-broadcast").addEventListener("click", toggleBroadcast);
     document.getElementById("btn-search").addEventListener("click", openSearch);
     document.getElementById("btn-palette").addEventListener("click", openPalette);
@@ -3194,7 +3201,7 @@
           } else {
             pluginsNeedRestart = true;
             showToast(isInstalled ? "Extension removed — restart to apply" : "Extension installed — restart to apply");
-            refreshPluginsPanel();
+            refreshSettingsExtensions();
           }
         } catch (err) {
           showToast("Error: " + err.message);
