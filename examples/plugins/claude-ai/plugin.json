@@ -1,0 +1,9 @@
+{
+  "name": "claude-ai",
+  "version": "1.0.0",
+  "description": "AI autocomplete and chat powered by Claude — ghost text suggestions, AI chat sidebar, and error analysis",
+  "type": "extension",
+  "main": "index.js",
+  "author": "Terminator",
+  "homepage": "https://github.com/suvash-glitch/Terminator"
+}

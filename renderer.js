@@ -24,14 +24,58 @@
     let customKeybindings = {}; // action -> shortcut override
     let ideMode = false; // IDE sidebar mode
     let ideVisiblePanes = []; // pane IDs visible in IDE mode (single = fullscreen, multiple = split)
-    let aiAutocomplete = false;
-    let aiApiKey = "";
-    let aiProvider = "anthropic";
 
     // Feature state (used by multiple sections)
     const paneStatsHistory = new Map(); // paneId -> { cpuHistory, lastMemory, lastCpu }
     const paneLineBufs = new Map(); // paneId -> current line buffer for command history
     const paneErrorDebounce = new Map(); // paneId -> last error timestamp
+
+    // ============================================================
+    // EXTENSION PLUGIN API
+    // ============================================================
+    const _extHooks = {
+      terminalInput: [],  // (id, data) => true to consume
+      errorDetected: [],  // (paneId, snippet) => void
+      contextMenu: [],    // (paneId) => [{label, action}]
+    };
+    const _extSettingsSections = []; // [{html, onMount}]
+    window._termExt = {
+      on(event, fn) { if (_extHooks[event]) _extHooks[event].push(fn); },
+      off(event, fn) { if (_extHooks[event]) _extHooks[event] = _extHooks[event].filter(f => f !== fn); },
+      get activeId() { return activeId; },
+      getPane(id) { return panes.get(id); },
+      get allPaneIds() { return [...panes.keys()]; },
+      get fontSize() { return currentFontSize; },
+      get broadcastMode() { return broadcastMode; },
+      sendInput(id, data) { window.terminator.sendInput(id, data); },
+      broadcast(ids, data) { window.terminator.broadcast(ids, data); },
+      showToast(msg) { showToast(msg); },
+      registerCommand(cmd) { commands.push(cmd); },
+      get settings() { return settings; },
+      saveSettings() { window.terminator.saveSettings(settings); },
+      ipc: window.terminator,
+      addSettingsSection(html, onMount) { _extSettingsSections.push({ html, onMount }); },
+      addToolbarButton({ id, title, icon, onClick, style }) {
+        const btn = document.createElement("button");
+        btn.className = "btn-icon";
+        btn.id = id;
+        btn.title = title || "";
+        if (style) btn.style.cssText = style;
+        btn.innerHTML = icon;
+        btn.addEventListener("click", onClick);
+        // Insert before IDE mode button
+        const ideBtn = document.getElementById("btn-ide-mode");
+        if (ideBtn) ideBtn.parentNode.insertBefore(btn, ideBtn);
+      },
+      addSidePanel(id, html) {
+        const panel = document.createElement("div");
+        panel.className = "side-panel";
+        panel.id = id;
+        panel.innerHTML = html;
+        document.body.appendChild(panel);
+        return panel;
+      },
+    };
 
     // ============================================================
     // THEMES
@@ -588,24 +632,12 @@
       });
 
       term.onData((data) => {
-        // AI autocomplete: accept with Tab if ghost text visible
-        if (data === "\t" && aiAutocomplete) {
-          const pane = panes.get(id);
-          if (pane && pane._aiGhostText) {
-            const ghost = pane._aiGhostText;
-            pane._aiGhostText = "";
-            aiDismissGhost(id);
-            // Send the completion as input
-            if (broadcastMode) { window.terminator.broadcast([...panes.keys()], ghost); }
-            else { window.terminator.sendInput(id, ghost); }
-            return;
-          }
+        // Extension hooks (e.g. AI autocomplete)
+        let consumed = false;
+        for (const fn of _extHooks.terminalInput) {
+          if (fn(id, data) === true) { consumed = true; break; }
         }
-        // Dismiss any ghost text on real input
-        if (aiAutocomplete) {
-          aiDismissGhost(id);
-          aiTrackInput(id, data);
-        }
+        if (consumed) return;
 
         // Track command history
         if (typeof trackCommandInput === "function") trackCommandInput(id, data);
@@ -622,8 +654,6 @@
             }
           }
         }
-        // Trigger AI autocomplete after input
-        if (aiAutocomplete) aiScheduleCompletion(id);
       });
       term.textarea.addEventListener("focus", () => setActive(id));
 
@@ -748,175 +778,6 @@
     });
 
     // ============================================================
-    // AI AUTOCOMPLETE
-    // ============================================================
-    const AI_DEBOUNCE_MS = 400;
-    const aiTimers = new Map(); // paneId -> timeout
-
-    function aiTrackInput(id, data) {
-      const pane = panes.get(id);
-      if (!pane) return;
-      if (!pane._aiLineBuf) pane._aiLineBuf = "";
-      // Reset on Enter, Ctrl+C, Ctrl+D
-      if (data === "\r" || data === "\n" || data === "\x03" || data === "\x04") {
-        pane._aiLineBuf = "";
-        return;
-      }
-      // Backspace
-      if (data === "\x7f" || data === "\b") {
-        pane._aiLineBuf = pane._aiLineBuf.slice(0, -1);
-        return;
-      }
-      // Ignore control sequences (arrows, escape, etc.)
-      if (data.length > 1 && data.charCodeAt(0) === 27) return;
-      if (data.charCodeAt(0) < 32 && data !== "\t") return;
-      pane._aiLineBuf += data;
-    }
-
-    function aiDismissGhost(id) {
-      const pane = panes.get(id);
-      if (!pane) return;
-      pane._aiGhostText = "";
-      // Find overlay in pane-body
-      const overlay = pane.el.querySelector(".pane-body .ai-ghost-overlay");
-      if (overlay) { overlay.textContent = ""; overlay.style.display = "none"; }
-      // Cancel pending request
-      if (pane._aiAbort) { pane._aiAbort.abort(); pane._aiAbort = null; }
-    }
-
-    function aiScheduleCompletion(id) {
-      // Clear previous timer
-      if (aiTimers.has(id)) clearTimeout(aiTimers.get(id));
-      const pane = panes.get(id);
-      if (!pane) return;
-      if (!pane._aiLineBuf || pane._aiLineBuf.trim().length < 3) return;
-      // Don't trigger if a process is running (not at shell prompt)
-      const proc = pane._lastProcess;
-      if (proc && proc !== "zsh" && proc !== "bash" && proc !== "fish" && proc !== "sh") return;
-      aiTimers.set(id, setTimeout(() => aiRequestCompletion(id), AI_DEBOUNCE_MS));
-    }
-
-    async function aiRequestCompletion(id) {
-      const pane = panes.get(id);
-      if (!pane || !pane._aiLineBuf || !aiApiKey) return;
-      const currentInput = pane._aiLineBuf;
-
-      // Get rich context
-      const buf = pane.term.buffer.active;
-
-      // Get the full current prompt line from the terminal buffer (what's actually displayed)
-      const currentLine = buf.getLine(buf.cursorY)?.translateToString(true)?.trim() || "";
-
-      // Get recent terminal output (last 20 visible lines, skip empty)
-      const lines = [];
-      const start = Math.max(0, buf.baseY + buf.cursorY - 25);
-      const end = buf.baseY + buf.cursorY;
-      for (let i = start; i < end; i++) {
-        const line = buf.getLine(i);
-        if (line) {
-          const text = line.translateToString(true).trim();
-          if (text) lines.push(text);
-        }
-      }
-
-      // Extract recent commands from output (lines starting with common prompt patterns)
-      const recentCmds = lines.filter(l => /^[$%>❯➜→#]|\w+@/.test(l)).slice(-5);
-
-      // Get cwd, git branch
-      let cwd = "", gitBranch = "";
-      try {
-        [cwd, gitBranch] = await Promise.all([
-          window.terminator.getCwd(id).catch(() => ""),
-          pane._lastGitBranch || "",
-        ]);
-      } catch (_) {}
-
-      const prompt = `cwd: ${cwd || "~"}
-shell: ${pane._lastProcess || "zsh"}, macOS
-${gitBranch ? `git branch: ${gitBranch}${pane._lastGitDirty ? " (dirty - uncommitted changes)" : " (clean)"}` : "no git repo"}
-${recentCmds.length ? `recent commands:\n${recentCmds.join("\n")}` : ""}
-
-terminal output (last 15 lines):
-${lines.slice(-15).join("\n")}
-
-> ${currentInput}`;
-
-      // Cancel previous in-flight request
-      if (pane._aiAbort) pane._aiAbort.abort();
-      const controller = new AbortController();
-      pane._aiAbort = controller;
-
-      try {
-        const result = await window.terminator.aiComplete({
-          prompt,
-          apiKey: aiApiKey,
-          provider: aiProvider,
-        });
-        // Check if input changed while waiting
-        if (pane._aiLineBuf !== currentInput) return;
-        if (controller.signal.aborted) return;
-        if (result.error) return;
-        let fullCmd = result.completion?.trim();
-        if (!fullCmd) return;
-        // Strip wrapping the model might add
-        fullCmd = fullCmd.replace(/^```\w*\s*/, "").replace(/```$/, "").trim();
-        fullCmd = fullCmd.replace(/^[`'"]+|[`'"]+$/g, "").trim();
-        fullCmd = fullCmd.replace(/^\$\s+/, "");
-        // Take first line only
-        fullCmd = fullCmd.split("\n")[0].trim();
-        if (fullCmd.length > 200) return;
-        // Extract the remaining part: model returns full command, we need just the suffix
-        let ghost = fullCmd;
-        if (fullCmd.toLowerCase().startsWith(currentInput.toLowerCase())) {
-          ghost = fullCmd.slice(currentInput.length);
-        }
-        if (!ghost || ghost.length < 2) return;
-
-        // Show ghost text
-        pane._aiGhostText = ghost;
-        aiShowGhost(id, ghost);
-      } catch (err) {
-        if (err.name !== "AbortError") console.log("AI autocomplete error:", err);
-      }
-    }
-
-    function aiShowGhost(id, text) {
-      const pane = panes.get(id);
-      if (!pane) return;
-      const body = pane.el.querySelector(".pane-body");
-      if (!body) return;
-      let overlay = body.querySelector(".ai-ghost-overlay");
-      if (!overlay) {
-        overlay = document.createElement("div");
-        overlay.className = "ai-ghost-overlay";
-        body.appendChild(overlay);
-      }
-      // Get xterm's actual cell dimensions and the xterm element offset within pane-body
-      const term = pane.term;
-      const dims = term._core._renderService?.dimensions;
-      const cellWidth = dims?.css?.cell?.width || 8.4;
-      const cellHeight = dims?.css?.cell?.height || 17;
-      const cursorX = term.buffer.active.cursorX;
-      const cursorY = term.buffer.active.cursorY;
-      // Account for xterm container offset within pane-body
-      const xtermEl = body.querySelector(".xterm");
-      const offsetLeft = xtermEl ? xtermEl.offsetLeft : 0;
-      const offsetTop = xtermEl ? xtermEl.offsetTop : 0;
-      // The xterm-screen has internal padding for the viewport
-      const screen = body.querySelector(".xterm-screen");
-      const screenLeft = screen ? screen.offsetLeft : 0;
-      const screenTop = screen ? screen.offsetTop : 0;
-      overlay.style.left = `${offsetLeft + screenLeft + cursorX * cellWidth}px`;
-      overlay.style.top = `${offsetTop + screenTop + cursorY * cellHeight}px`;
-      overlay.style.height = `${cellHeight}px`;
-      overlay.style.lineHeight = `${cellHeight}px`;
-      overlay.style.fontSize = `${currentFontSize}px`;
-      overlay.style.fontFamily = term.options.fontFamily || '"SF Mono", "Menlo", "Monaco", "Courier New", monospace';
-      overlay.style.display = "block";
-      overlay.textContent = text;
-    }
-
-    // ============================================================
     // SEARCH
     // ============================================================
     const searchBar = document.getElementById("search-bar"), searchInput = document.getElementById("search-input");
@@ -953,7 +814,7 @@ ${lines.slice(-15).join("\n")}
         { label: "Split Down", shortcut: "Cmd+Shift+D", action: () => { setActive(paneId); splitPane("vertical"); }},
         { label: "Zoom Pane", shortcut: "Cmd+Shift+Enter", action: () => { setActive(paneId); toggleZoom(); }},
         { sep: true },
-        { label: "Ask AI about this", action: () => askAIAboutPane(paneId) },
+        ..._extHooks.contextMenu.flatMap(fn => fn(paneId) || []),
         { sep: true },
         { label: "Close Pane", shortcut: "Cmd+W", action: () => removeTerminal(paneId), danger: true },
       ];
@@ -1142,7 +1003,6 @@ ${lines.slice(-15).join("\n")}
       { label: "SSH Bookmarks", action: () => openSshManager(), category: "Tools" },
       { label: "Connect to Remote", action: () => openRemoteConnect(), category: "Tools" },
       { label: "Docker Containers", action: () => openDockerPanel(), category: "Tools" },
-      { label: "AI Chat", shortcut: "Cmd+Shift+A", action: () => toggleAIChat(), category: "Tools" },
       { label: "Port Manager", shortcut: "Cmd+Shift+P", action: () => openPortPanel(), category: "Tools" },
       { label: "Command History Search", shortcut: "Ctrl+R", action: () => openHistorySearch(), category: "Search" },
       { label: "Tailscale Devices", action: () => openTailscalePanel(), category: "Tools" },
@@ -1889,7 +1749,6 @@ ${lines.slice(-15).join("\n")}
     document.getElementById("btn-search").addEventListener("click", openSearch);
     document.getElementById("btn-palette").addEventListener("click", openPalette);
     document.getElementById("btn-theme").addEventListener("click", cycleTheme);
-    document.getElementById("btn-ai-chat").addEventListener("click", toggleAIChat);
     document.getElementById("btn-ports").addEventListener("click", () => openPortPanel());
     document.getElementById("btn-tailscale").addEventListener("click", () => openTailscalePanel());
     document.getElementById("btn-pipeline").addEventListener("click", openPipelinePanel);
@@ -2092,7 +1951,6 @@ ${lines.slice(-15).join("\n")}
       else if (meta && e.key === "k") { e.preventDefault(); if (activeId && panes.has(activeId)) { panes.get(activeId).term.clear(); panes.get(activeId).term.focus(); } }
       else if (meta && e.shiftKey && e.key === "Enter") { e.preventDefault(); toggleZoom(); }
       else if (meta && e.shiftKey && (e.key === "B" || e.key === "b")) { e.preventDefault(); toggleBroadcast(); }
-      else if (meta && e.shiftKey && (e.key === "A" || e.key === "a")) { e.preventDefault(); toggleAIChat(); }
       else if (meta && e.shiftKey && (e.key === "R" || e.key === "r")) { e.preventDefault(); openSnippetRunner(); }
       else if (meta && (e.key === "=" || e.key === "+")) { e.preventDefault(); setFontSize(currentFontSize + 1); }
       else if (meta && e.key === "-") { e.preventDefault(); setFontSize(currentFontSize - 1); }
@@ -2790,273 +2648,6 @@ ${lines.slice(-15).join("\n")}
     document.getElementById("docker-refresh").addEventListener("click", refreshDocker);
 
     // ============================================================
-    // AI CHAT PANEL (agent-a701b693)
-    // ============================================================
-    const aiChatPanel = document.getElementById("ai-chat-panel");
-    const aiChatMessages = document.getElementById("ai-chat-messages");
-    const aiChatInput = document.getElementById("ai-chat-input");
-    const aiChatSend = document.getElementById("ai-chat-send");
-    const aiChatContextCheck = document.getElementById("ai-chat-context");
-    let aiChatHistory = []; // {role, content} for API
-    let aiChatBusy = false;
-
-    function toggleAIChat() {
-      const isVisible = aiChatPanel.classList.contains("visible");
-      if (isVisible) {
-        closeAIChat();
-      } else {
-        openAIChat();
-      }
-    }
-
-    function openAIChat() {
-      aiChatPanel.classList.add("visible");
-      if (!aiApiKey) {
-        showAIApiKeySetup();
-      }
-      setTimeout(() => aiChatInput.focus(), 100);
-    }
-
-    function closeAIChat() {
-      aiChatPanel.classList.remove("visible");
-      if (activeId && panes.has(activeId)) panes.get(activeId).term.focus();
-    }
-
-    function showAIApiKeySetup() {
-      const existing = aiChatMessages.querySelector(".ai-chat-api-key-setup");
-      if (existing) return;
-      const setup = document.createElement("div");
-      setup.className = "ai-chat-api-key-setup";
-      setup.innerHTML = `
-        <strong style="color:#ccc">API Key Required</strong><br><br>
-        Enter your Anthropic API key to use AI Chat:<br>
-        <input type="password" id="ai-chat-api-key-input" placeholder="sk-ant-..." />
-        <button id="ai-chat-api-key-save">Save Key</button>
-        <br><br><span style="color:#555;font-size:10px">Your key is stored locally and never shared.</span>
-      `;
-      aiChatMessages.innerHTML = "";
-      aiChatMessages.appendChild(setup);
-      setTimeout(() => {
-        const keyInput = document.getElementById("ai-chat-api-key-input");
-        const keySave = document.getElementById("ai-chat-api-key-save");
-        if (keyInput) keyInput.focus();
-        if (keySave) {
-          keySave.addEventListener("click", () => {
-            const key = keyInput.value.trim();
-            if (key) {
-              aiApiKey = key;
-              window.terminator.loadConfig().then(config => {
-                config = config || {};
-                config.aiApiKey = key;
-                window.terminator.saveConfig(config);
-              }).catch(() => {});
-              aiChatMessages.innerHTML = "";
-              showAIChatWelcome();
-              showToast("AI API key saved");
-              aiChatInput.focus();
-            }
-          });
-          if (keyInput) keyInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") { e.preventDefault(); keySave.click(); }
-          });
-        }
-      }, 50);
-    }
-
-    function showAIChatWelcome() {
-      aiChatMessages.innerHTML = `<div class="ai-chat-welcome">
-        <strong>AI Terminal Assistant</strong><br><br>
-        Ask about errors, get commands explained,<br>debug issues, or get help with shell tasks.<br><br>
-        <span style="color:#555">Powered by Claude</span>
-      </div>`;
-    }
-
-    function getTerminalContext(paneId, lineCount) {
-      const pane = panes.get(paneId || activeId);
-      if (!pane) return "";
-      const buf = pane.term.buffer.active;
-      const lines = [];
-      const start = Math.max(0, buf.length - (lineCount || 20));
-      for (let i = start; i < buf.length; i++) {
-        const line = buf.getLine(i);
-        if (line) lines.push(line.translateToString(true));
-      }
-      while (lines.length > 0 && lines[lines.length - 1].trim() === "") lines.pop();
-      return lines.join("\n");
-    }
-
-    function formatAIMessage(text) {
-      let html = text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-      html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
-        return `<pre><code>${code.trim()}</code></pre>`;
-      });
-      html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-      html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-      return html;
-    }
-
-    function appendAIChatMessage(role, content) {
-      const welcome = aiChatMessages.querySelector(".ai-chat-welcome");
-      if (welcome) welcome.remove();
-      const apiSetup = aiChatMessages.querySelector(".ai-chat-api-key-setup");
-      if (apiSetup) apiSetup.remove();
-
-      const msg = document.createElement("div");
-      msg.className = "ai-chat-msg " + role;
-      if (role === "error") {
-        msg.textContent = content;
-      } else if (role === "assistant") {
-        msg.innerHTML = formatAIMessage(content);
-      } else {
-        msg.textContent = content;
-      }
-      aiChatMessages.appendChild(msg);
-      aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-      return msg;
-    }
-
-    function showAITypingIndicator() {
-      const typing = document.createElement("div");
-      typing.className = "ai-chat-typing";
-      typing.id = "ai-chat-typing";
-      typing.innerHTML = "<span></span><span></span><span></span>";
-      aiChatMessages.appendChild(typing);
-      aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
-      return typing;
-    }
-
-    function removeAITypingIndicator() {
-      const el = document.getElementById("ai-chat-typing");
-      if (el) el.remove();
-    }
-
-    async function sendAIChatMessage() {
-      if (aiChatBusy) return;
-      const text = aiChatInput.value.trim();
-      if (!text) return;
-
-      if (!aiApiKey) {
-        showAIApiKeySetup();
-        return;
-      }
-
-      aiChatInput.value = "";
-      aiChatInput.style.height = "36px";
-
-      let userContent = text;
-      if (aiChatContextCheck.checked && activeId) {
-        const context = getTerminalContext(activeId, 30);
-        if (context) {
-          userContent = `Terminal output (last 30 lines):\n\`\`\`\n${context}\n\`\`\`\n\nMy question: ${text}`;
-        }
-      }
-
-      appendAIChatMessage("user", text);
-      aiChatHistory.push({ role: "user", content: userContent });
-
-      aiChatBusy = true;
-      aiChatSend.disabled = true;
-      showAITypingIndicator();
-
-      try {
-        const result = await window.terminator.aiChat({
-          messages: aiChatHistory,
-          apiKey: aiApiKey,
-        });
-
-        removeAITypingIndicator();
-
-        if (result.error) {
-          appendAIChatMessage("error", result.error);
-        } else {
-          appendAIChatMessage("assistant", result.text);
-          aiChatHistory.push({ role: "assistant", content: result.text });
-        }
-      } catch (err) {
-        removeAITypingIndicator();
-        appendAIChatMessage("error", "Failed to get response: " + (err.message || "Unknown error"));
-      }
-
-      aiChatBusy = false;
-      aiChatSend.disabled = false;
-      aiChatInput.focus();
-    }
-
-    function askAIAboutPane(paneId) {
-      const context = getTerminalContext(paneId, 20);
-      if (!context) {
-        showToast("No terminal output to analyze");
-        return;
-      }
-      openAIChat();
-      aiChatInput.value = "What's happening in this terminal output? Are there any errors?";
-      const wasChecked = aiChatContextCheck.checked;
-      aiChatContextCheck.checked = false;
-
-      const userText = aiChatInput.value;
-      aiChatInput.value = "";
-      const userContent = `Terminal output from pane ${paneId} (last 20 lines):\n\`\`\`\n${context}\n\`\`\`\n\nMy question: ${userText}`;
-
-      appendAIChatMessage("user", userText);
-      aiChatHistory.push({ role: "user", content: userContent });
-
-      aiChatContextCheck.checked = wasChecked;
-
-      aiChatBusy = true;
-      aiChatSend.disabled = true;
-      showAITypingIndicator();
-
-      window.terminator.aiChat({
-        messages: aiChatHistory,
-        apiKey: aiApiKey,
-      }).then(result => {
-        removeAITypingIndicator();
-        if (result.error) {
-          if (!aiApiKey) { showAIApiKeySetup(); }
-          else appendAIChatMessage("error", result.error);
-        } else {
-          appendAIChatMessage("assistant", result.text);
-          aiChatHistory.push({ role: "assistant", content: result.text });
-        }
-        aiChatBusy = false;
-        aiChatSend.disabled = false;
-        aiChatInput.focus();
-      }).catch(err => {
-        removeAITypingIndicator();
-        appendAIChatMessage("error", "Failed: " + (err.message || "Unknown error"));
-        aiChatBusy = false;
-        aiChatSend.disabled = false;
-      });
-    }
-
-    aiChatSend.addEventListener("click", sendAIChatMessage);
-    aiChatInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendAIChatMessage();
-      }
-      if (e.key === "Escape") {
-        closeAIChat();
-      }
-    });
-    aiChatInput.addEventListener("input", () => {
-      aiChatInput.style.height = "36px";
-      aiChatInput.style.height = Math.min(aiChatInput.scrollHeight, 100) + "px";
-    });
-
-    document.getElementById("ai-chat-close").addEventListener("click", closeAIChat);
-    document.getElementById("ai-chat-clear").addEventListener("click", () => {
-      aiChatHistory = [];
-      aiChatMessages.innerHTML = "";
-      showAIChatWelcome();
-      showToast("Chat cleared");
-      aiChatInput.focus();
-    });
-
-    // ============================================================
     // PORT MANAGER PANEL (agent-a4ac31bd)
     // ============================================================
     const portPanel = document.getElementById("port-panel");
@@ -3238,11 +2829,12 @@ ${lines.slice(-15).join("\n")}
 
       const toast = document.createElement("div");
       toast.className = "error-toast";
-      toast.innerHTML = `<span class="error-toast-msg">${errorSnippet.replace(/</g, "&lt;")}</span><button class="error-toast-btn">Ask AI</button><button class="error-toast-close">x</button>`;
+      toast.innerHTML = `<span class="error-toast-msg">${errorSnippet.replace(/</g, "&lt;")}</span>${_extHooks.errorDetected.length ? '<button class="error-toast-btn">Ask AI</button>' : ''}<button class="error-toast-close">x</button>`;
       toast.querySelector(".error-toast-close").addEventListener("click", () => toast.remove());
-      toast.querySelector(".error-toast-btn").addEventListener("click", () => {
+      const askBtn = toast.querySelector(".error-toast-btn");
+      if (askBtn) askBtn.addEventListener("click", () => {
         toast.remove();
-        askAIAboutPane(paneId);
+        for (const fn of _extHooks.errorDetected) fn(paneId, errorSnippet);
       });
 
       const body = pane.el.querySelector(".pane-body");
@@ -4730,13 +4322,24 @@ ${lines.slice(-15).join("\n")}
       document.getElementById("setting-auto-save").checked = settings.autoSaveSession !== false;
       document.getElementById("setting-auto-save-interval").value = autoSaveInterval;
       document.getElementById("setting-ide-mode").checked = ideMode;
-      document.getElementById("setting-ai-autocomplete").checked = aiAutocomplete;
-      document.getElementById("setting-ai-api-key").value = aiApiKey;
-      document.getElementById("setting-ai-provider").value = aiProvider;
 
       // Version info
       window.terminator.getAppVersion().then(v => { document.getElementById("setting-version").textContent = v; }).catch(() => {});
       window.terminator.getDefaultShell().then(s => { document.getElementById("setting-detected-shell").textContent = s; }).catch(() => {});
+
+      // Mount extension settings sections (once)
+      for (const sec of _extSettingsSections) {
+        if (!sec._mounted) {
+          const settingsContent = document.querySelector("#settings-panel .settings-content");
+          if (settingsContent) {
+            const container = document.createElement("div");
+            container.innerHTML = sec.html;
+            settingsContent.appendChild(container);
+            sec._mounted = true;
+          }
+        }
+        if (sec.onMount) sec.onMount();
+      }
     }
 
     function closeSettings() {
@@ -4759,11 +4362,6 @@ ${lines.slice(-15).join("\n")}
       bufferLimit = (newBufferKB || 512) * 1024;
       const newIdeMode = document.getElementById("setting-ide-mode").checked;
       if (newIdeMode !== ideMode) toggleIdeMode();
-
-      // AI Autocomplete
-      aiAutocomplete = document.getElementById("setting-ai-autocomplete").checked;
-      aiApiKey = document.getElementById("setting-ai-api-key").value.trim();
-      aiProvider = document.getElementById("setting-ai-provider").value;
 
       // Apply to all terminals
       for (const [, pane] of panes) {
@@ -4796,9 +4394,6 @@ ${lines.slice(-15).join("\n")}
         autoSaveInterval,
         shell: document.getElementById("setting-shell").value.trim(),
         defaultCwd: document.getElementById("setting-cwd").value.trim(),
-        aiAutocomplete,
-        aiApiKey,
-        aiProvider,
       };
       window.terminator.saveSettings(settings);
       showToast("Settings saved");
@@ -4817,16 +4412,12 @@ ${lines.slice(-15).join("\n")}
     ["setting-theme", "setting-font-size", "setting-cursor-style", "setting-scrollback", "setting-buffer-limit", "setting-auto-save-interval"].forEach(id => {
       document.getElementById(id).addEventListener("change", applySettings);
     });
-    ["setting-cursor-blink", "setting-copy-on-select", "setting-confirm-close", "setting-auto-save", "setting-ide-mode", "setting-ai-autocomplete"].forEach(id => {
-      document.getElementById(id).addEventListener("change", applySettings);
-    });
-    ["setting-ai-provider"].forEach(id => {
+    ["setting-cursor-blink", "setting-copy-on-select", "setting-confirm-close", "setting-auto-save", "setting-ide-mode"].forEach(id => {
       document.getElementById(id).addEventListener("change", applySettings);
     });
     document.getElementById("setting-font-family").addEventListener("blur", applySettings);
     document.getElementById("setting-shell").addEventListener("blur", applySettings);
     document.getElementById("setting-cwd").addEventListener("blur", applySettings);
-    document.getElementById("setting-ai-api-key").addEventListener("blur", applySettings);
 
     // ============================================================
     // KEYBINDING EDITOR
@@ -5072,6 +4663,19 @@ ${lines.slice(-15).join("\n")}
               }, 5000);
             }
 
+            if (type === "extension" && pluginExports.activate) {
+              const extCtx = {
+                ...window._termExt,
+                on: window._termExt.on.bind(window._termExt),
+                off: window._termExt.off.bind(window._termExt),
+              };
+              try {
+                pluginExports.activate(extCtx);
+              } catch (err) {
+                console.warn(`Extension ${plugin.manifest.name} activation error:`, err);
+              }
+            }
+
             console.log(`Plugin loaded: ${plugin.manifest.name} (${type})`);
           } catch (err) {
             console.warn(`Failed to load plugin ${plugin.manifest.name}:`, err);
@@ -5109,9 +4713,6 @@ ${lines.slice(-15).join("\n")}
             document.body.classList.add("ide-mode");
             ideModeBtn.classList.add("active-toggle");
           }
-          if (settings.aiAutocomplete) aiAutocomplete = true;
-          if (settings.aiApiKey) aiApiKey = settings.aiApiKey;
-          if (settings.aiProvider) aiProvider = settings.aiProvider;
           setupAutoSave();
         }
 
