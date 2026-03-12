@@ -1095,20 +1095,66 @@ ipcMain.handle("ssh-remote-open-all", async (_, { host, user, port, password, se
 
 // AI Chat
 ipcMain.handle("ai-chat", async (_, params) => {
-  const { messages, apiKey } = params;
-  if (!apiKey) return { error: "No API key configured" };
+  const { messages, apiKey, provider, model } = params;
+  if (!apiKey && provider !== "ollama") return { error: "No API key configured" };
+  const systemMsg = "You are a helpful terminal assistant in Terminator. Help with commands, errors, debugging. Be concise. Use code blocks for commands.";
   try {
+    if (provider === "openai" || provider === "openai-compatible") {
+      const baseUrl = params.baseUrl || "https://api.openai.com/v1";
+      const res = await electronNet.fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: model || "gpt-4o-mini",
+          max_tokens: 2048,
+          messages: [{ role: "system", content: systemMsg }, ...messages],
+        }),
+      });
+      if (!res.ok) { const t = await res.text(); return { error: `API error (${res.status}): ${t.slice(0, 300)}` }; }
+      const data = await res.json();
+      return { text: data.choices?.[0]?.message?.content || "" };
+    }
+    if (provider === "google") {
+      const m = model || "gemini-2.0-flash";
+      const res = await electronNet.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemMsg }] },
+          contents: messages.map(msg => ({ role: msg.role === "assistant" ? "model" : "user", parts: [{ text: msg.content }] })),
+        }),
+      });
+      if (!res.ok) { const t = await res.text(); return { error: `API error (${res.status}): ${t.slice(0, 300)}` }; }
+      const data = await res.json();
+      return { text: data.candidates?.[0]?.content?.parts?.[0]?.text || "" };
+    }
+    if (provider === "ollama") {
+      const baseUrl = params.baseUrl || "http://localhost:11434";
+      const res = await electronNet.fetch(`${baseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: model || "llama3.2",
+          stream: false,
+          messages: [{ role: "system", content: systemMsg }, ...messages],
+        }),
+      });
+      if (!res.ok) { const t = await res.text(); return { error: `Ollama error (${res.status}): ${t.slice(0, 300)}` }; }
+      const data = await res.json();
+      return { text: data.message?.content || "" };
+    }
+    // Default: Anthropic
     const response = await electronNet.fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: model || "claude-haiku-4-5-20251001",
         max_tokens: 2048,
-        system: "You are a helpful terminal assistant in Terminator. Help with commands, errors, debugging. Be concise. Use code blocks for commands.",
+        system: systemMsg,
         messages,
       }),
     });
-    if (!response.ok) { const errText = await response.text(); return { error: `API error (${response.status}): ${errText}` }; }
+    if (!response.ok) { const errText = await response.text(); return { error: `API error (${response.status}): ${errText.slice(0, 300)}` }; }
     const data = await response.json();
     return { text: data.content?.[0]?.text || "" };
   } catch (e) { return { error: e.message }; }
@@ -1277,22 +1323,7 @@ ipcMain.handle("load-settings", () => readJSON(SETTINGS_PATH, {
 }));
 
 // AI Autocomplete
-ipcMain.handle("ai-complete", async (_, { prompt, apiKey, provider }) => {
-  if (!apiKey) return { error: "No API key configured" };
-  try {
-    if (provider === "anthropic" || !provider) {
-      const res = await electronNet.fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 200,
-          temperature: 0,
-          system: `You are a terminal autocomplete engine like GitHub Copilot for the shell. Given a partial command with context, predict the FULL complete command the user most likely wants to run.
+const AI_AUTOCOMPLETE_SYSTEM = `You are a terminal autocomplete engine like GitHub Copilot for the shell. Given a partial command with context, predict the FULL complete command the user most likely wants to run.
 
 OUTPUT FORMAT: Output ONLY the full command. No explanation. No markdown. No backticks. No "$ " prefix. Just the raw command.
 
@@ -1301,38 +1332,80 @@ IMPORTANT:
 - Be specific and contextual. Use the working directory, git state, recent commands, and terminal output to predict what the user wants.
 - Suggest complete, ready-to-run commands, not just one word.
 
-Examples of GOOD completions:
-- "git c" → "git commit -m \\"feat: add new feature\\""
-- "docker" → "docker compose up -d"
-- "npm r" → "npm run dev"
-- "ssh " → "ssh user@192.168.1.100"
-- "curl" → "curl -X GET http://localhost:3000/api/health"
-- "find" → "find . -name \\"*.js\\" -type f"
-- "grep" → "grep -rn \\"TODO\\" src/"
-- "git p" with dirty state → "git push origin main"
-- "cd " → "cd src/components"
+If you truly cannot suggest anything useful, repeat the input exactly as-is.`;
 
-If you truly cannot suggest anything useful, repeat the input exactly as-is.`,
-          messages: [{ role: "user", content: prompt }],
+function sanitizeCompletion(raw) {
+  let text = (raw || "").trimStart().split("\n")[0].trim();
+  text = text.replace(/^```\w*\s*/, "").replace(/```$/, "").trim();
+  text = text.replace(/^[`'"]+|[`'"]+$/g, "");
+  text = text.replace(/^\$\s+/, "");
+  if (/^(I |You |To |This |That |Note|Sorry|Here|If you|The command)/i.test(text)) return "";
+  if (text.length > 120) return "";
+  return text;
+}
+
+ipcMain.handle("ai-complete", async (_, params) => {
+  const { prompt, apiKey, provider, model } = params;
+  if (!apiKey && provider !== "ollama") return { error: "No API key configured" };
+  try {
+    if (provider === "openai" || provider === "openai-compatible") {
+      const baseUrl = params.baseUrl || "https://api.openai.com/v1";
+      const res = await electronNet.fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: model || "gpt-4o-mini",
+          max_tokens: 200, temperature: 0,
+          messages: [{ role: "system", content: AI_AUTOCOMPLETE_SYSTEM }, { role: "user", content: prompt }],
         }),
       });
-      if (!res.ok) {
-        const body = await res.text();
-        return { error: `API ${res.status}: ${body.slice(0, 200)}` };
-      }
+      if (!res.ok) { const t = await res.text(); return { error: `API ${res.status}: ${t.slice(0, 200)}` }; }
       const json = await res.json();
-      let text = json.content?.[0]?.text || "";
-      // Take first line, strip wrapping
-      text = text.trimStart().split("\n")[0].trim();
-      text = text.replace(/^```\w*\s*/, "").replace(/```$/, "").trim();
-      text = text.replace(/^[`'"]+|[`'"]+$/g, "");
-      text = text.replace(/^\$\s+/, ""); // strip leading "$ "
-      // Reject if it's clearly prose (multiple sentences, contains "I ", "you ", etc.)
-      if (/^(I |You |To |This |That |Note|Sorry|Here|If you|The command)/i.test(text)) return { completion: "" };
-      if (text.length > 120) return { completion: "" };
-      return { completion: text };
+      return { completion: sanitizeCompletion(json.choices?.[0]?.message?.content) };
     }
-    return { error: "Unknown provider" };
+    if (provider === "google") {
+      const m = model || "gemini-2.0-flash";
+      const res = await electronNet.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: AI_AUTOCOMPLETE_SYSTEM }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        }),
+      });
+      if (!res.ok) { const t = await res.text(); return { error: `API ${res.status}: ${t.slice(0, 200)}` }; }
+      const json = await res.json();
+      return { completion: sanitizeCompletion(json.candidates?.[0]?.content?.parts?.[0]?.text) };
+    }
+    if (provider === "ollama") {
+      const baseUrl = params.baseUrl || "http://localhost:11434";
+      const res = await electronNet.fetch(`${baseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: model || "llama3.2",
+          stream: false,
+          messages: [{ role: "system", content: AI_AUTOCOMPLETE_SYSTEM }, { role: "user", content: prompt }],
+        }),
+      });
+      if (!res.ok) { const t = await res.text(); return { error: `Ollama ${res.status}: ${t.slice(0, 200)}` }; }
+      const json = await res.json();
+      return { completion: sanitizeCompletion(json.message?.content) };
+    }
+    // Default: Anthropic
+    const res = await electronNet.fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: model || "claude-haiku-4-5-20251001",
+        max_tokens: 200, temperature: 0,
+        system: AI_AUTOCOMPLETE_SYSTEM,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) { const t = await res.text(); return { error: `API ${res.status}: ${t.slice(0, 200)}` }; }
+    const json = await res.json();
+    return { completion: sanitizeCompletion(json.content?.[0]?.text) };
   } catch (err) {
     return { error: err.message };
   }

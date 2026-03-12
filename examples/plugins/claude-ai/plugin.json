@@ -1,7 +1,7 @@
 {
   "name": "claude-ai",
-  "version": "1.0.0",
-  "description": "AI autocomplete and chat powered by Claude — ghost text suggestions, AI chat sidebar, and error analysis",
+  "version": "2.0.0",
+  "description": "AI autocomplete and chat — supports Anthropic, OpenAI, Google Gemini, Ollama, and OpenAI-compatible providers",
   "type": "extension",
   "main": "index.js",
   "author": "Terminator",

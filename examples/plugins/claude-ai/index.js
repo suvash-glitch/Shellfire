@@ -15,12 +15,48 @@ exports.activate = function (ctx) {
   var aiAutocomplete = ctx.settings.aiAutocomplete || false;
   var aiApiKey = ctx.settings.aiApiKey || "";
   var aiProvider = ctx.settings.aiProvider || "anthropic";
+  var aiModel = ctx.settings.aiModel || "";
+  var aiBaseUrl = ctx.settings.aiBaseUrl || "";
+
+  var PROVIDER_MODELS = {
+    anthropic: [
+      { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+      { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+      { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
+    ],
+    openai: [
+      { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+      { value: "gpt-4o", label: "GPT-4o" },
+      { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+      { value: "gpt-4.1", label: "GPT-4.1" },
+      { value: "o4-mini", label: "o4-mini" },
+    ],
+    google: [
+      { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+      { value: "gemini-2.5-flash-preview-05-20", label: "Gemini 2.5 Flash" },
+      { value: "gemini-2.5-pro-preview-05-06", label: "Gemini 2.5 Pro" },
+    ],
+    ollama: [
+      { value: "llama3.2", label: "Llama 3.2" },
+      { value: "mistral", label: "Mistral" },
+      { value: "codellama", label: "Code Llama" },
+      { value: "deepseek-coder", label: "DeepSeek Coder" },
+    ],
+    "openai-compatible": [],
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   // D. Autocomplete State
   // ─────────────────────────────────────────────────────────────────────────
   var AI_DEBOUNCE_MS = 400;
   var aiTimers = {};
+
+  /** Build common params for AI API calls */
+  function aiParams() {
+    var p = { apiKey: aiApiKey, provider: aiProvider, model: aiModel };
+    if (aiBaseUrl) p.baseUrl = aiBaseUrl;
+    return p;
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // A. CSS Injection
@@ -290,7 +326,7 @@ exports.activate = function (ctx) {
   // ─────────────────────────────────────────────────────────────────────────
   var chatPanelHTML = [
     '<div class="ai-chat-header">',
-    '  <span class="ai-chat-header-title">AI Chat</span>',
+    '  <span class="ai-chat-header-title" id="ai-chat-title">AI Chat</span>',
     '  <div class="ai-chat-header-actions">',
     '    <button id="ai-chat-clear" title="Clear chat" style="color:#00f0ff">',
     '      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">',
@@ -306,9 +342,9 @@ exports.activate = function (ctx) {
     '</div>',
     '<div class="ai-chat-messages" id="ai-chat-messages">',
     '  <div class="ai-chat-welcome">',
-    '    <strong>Claude AI Chat</strong><br/>',
+    '    <strong>AI Chat</strong><br/>',
     '    Ask questions about your terminal, debug errors, or get help with commands.<br/><br/>',
-    '    <span style="font-size:11px;color:#666">Powered by Anthropic\'s Claude API</span>',
+    '    <span style="font-size:11px;color:#666">Configure provider in Settings → Extensions</span>',
     '  </div>',
     '</div>',
     '<div class="ai-chat-input-area">',
@@ -317,7 +353,7 @@ exports.activate = function (ctx) {
     '    <label for="ai-chat-context">Include terminal context</label>',
     '  </div>',
     '  <div class="ai-chat-input-row">',
-    '    <textarea id="ai-chat-input" placeholder="Ask Claude..." rows="1"></textarea>',
+    '    <textarea id="ai-chat-input" placeholder="Ask AI..." rows="1"></textarea>',
     '    <button id="ai-chat-send">Send</button>',
     '  </div>',
     '</div>'
@@ -383,7 +419,7 @@ exports.activate = function (ctx) {
   /** Open the AI chat panel */
   function openAIChat() {
     if (!aiChatPanel) return;
-    if (!aiApiKey) {
+    if (!aiApiKey && aiProvider !== "ollama") {
       showAIApiKeySetup();
     }
     aiChatPanel.classList.add("visible");
@@ -404,13 +440,15 @@ exports.activate = function (ctx) {
     var existing = aiChatMessages.querySelector(".ai-chat-api-key-setup");
     if (existing) return;
 
+    var providerLabel = { anthropic: "Anthropic", openai: "OpenAI", google: "Google AI", ollama: "Ollama", "openai-compatible": "" }[aiProvider] || aiProvider;
+    var placeholder = { anthropic: "sk-ant-...", openai: "sk-...", google: "AIza...", ollama: "(optional)", "openai-compatible": "API key..." }[aiProvider] || "API key...";
     var setup = document.createElement("div");
     setup.className = "ai-chat-api-key-setup";
     setup.innerHTML = [
-      '<p style="color:#ccc;font-size:13px;margin-bottom:12px">Enter your Anthropic API key to get started:</p>',
-      '<input type="password" id="ai-chat-apikey-input" placeholder="sk-ant-..." />',
+      '<p style="color:#ccc;font-size:13px;margin-bottom:12px">Enter your ' + providerLabel + ' API key to get started:</p>',
+      '<input type="password" id="ai-chat-apikey-input" placeholder="' + placeholder + '" />',
       '<button id="ai-chat-apikey-save">Save Key</button>',
-      '<p style="font-size:10px;color:#666;margin-top:8px">Stored locally in plaintext</p>'
+      '<p style="font-size:10px;color:#666;margin-top:8px">Or configure in Settings → Extensions</p>'
     ].join("");
 
     aiChatMessages.innerHTML = "";
@@ -440,7 +478,7 @@ exports.activate = function (ctx) {
       '<div class="ai-chat-welcome">',
       '  <strong>Claude AI Chat</strong><br/>',
       '  Ask questions about your terminal, debug errors, or get help with commands.<br/><br/>',
-      '  <span style="font-size:11px;color:#666">Powered by Anthropic\'s Claude API</span>',
+      '  <span style="font-size:11px;color:#666">Configure provider in Settings → Extensions</span>',
       '</div>'
     ].join("");
   }
@@ -546,7 +584,7 @@ exports.activate = function (ctx) {
     var text = aiChatInput.value.trim();
     if (!text) return;
 
-    if (!aiApiKey) {
+    if (!aiApiKey && aiProvider !== "ollama") {
       showAIApiKeySetup();
       return;
     }
@@ -569,17 +607,13 @@ exports.activate = function (ctx) {
     if (aiChatSend) aiChatSend.disabled = true;
     showAITypingIndicator();
 
-    ctx.ipc.aiChat({
-      messages: aiChatHistory,
-      apiKey: aiApiKey,
-      provider: aiProvider
-    }).then(function (result) {
+    ctx.ipc.aiChat(Object.assign({ messages: aiChatHistory }, aiParams())).then(function (result) {
       removeAITypingIndicator();
       if (result && result.text) {
         appendAIChatMessage("assistant", result.text);
         aiChatHistory.push({ role: "assistant", content: result.text });
       } else {
-        appendAIChatMessage("error", "No response from Claude.");
+        appendAIChatMessage("error", "No response from AI.");
       }
     }).catch(function (err) {
       removeAITypingIndicator();
@@ -610,17 +644,13 @@ exports.activate = function (ctx) {
     if (aiChatSend) aiChatSend.disabled = true;
     showAITypingIndicator();
 
-    ctx.ipc.aiChat({
-      messages: aiChatHistory,
-      apiKey: aiApiKey,
-      provider: aiProvider
-    }).then(function (result) {
+    ctx.ipc.aiChat(Object.assign({ messages: aiChatHistory }, aiParams())).then(function (result) {
       removeAITypingIndicator();
       if (result && result.text) {
         appendAIChatMessage("assistant", result.text);
         aiChatHistory.push({ role: "assistant", content: result.text });
       } else {
-        appendAIChatMessage("error", "No response from Claude.");
+        appendAIChatMessage("error", "No response from AI.");
       }
     }).catch(function (err) {
       removeAITypingIndicator();
@@ -818,12 +848,7 @@ exports.activate = function (ctx) {
     var controller = new AbortController();
     pane._aiAbort = controller;
 
-    ctx.ipc.aiComplete({
-      prompt: prompt,
-      apiKey: aiApiKey,
-      provider: aiProvider,
-      signal: controller.signal
-    }).then(function (result) {
+    ctx.ipc.aiComplete(Object.assign({ prompt: prompt, signal: controller.signal }, aiParams())).then(function (result) {
       pane._aiAbort = null;
 
       // Verify pane still has the same input (user may have typed more)
@@ -977,17 +1002,13 @@ exports.activate = function (ctx) {
     if (aiChatSend) aiChatSend.disabled = true;
     showAITypingIndicator();
 
-    ctx.ipc.aiChat({
-      messages: aiChatHistory,
-      apiKey: aiApiKey,
-      provider: aiProvider
-    }).then(function (result) {
+    ctx.ipc.aiChat(Object.assign({ messages: aiChatHistory }, aiParams())).then(function (result) {
       removeAITypingIndicator();
       if (result && result.text) {
         appendAIChatMessage("assistant", result.text);
         aiChatHistory.push({ role: "assistant", content: result.text });
       } else {
-        appendAIChatMessage("error", "No response from Claude.");
+        appendAIChatMessage("error", "No response from AI.");
       }
     }).catch(function (err) {
       removeAITypingIndicator();
@@ -1004,39 +1025,125 @@ exports.activate = function (ctx) {
   // ─────────────────────────────────────────────────────────────────────────
   var settingsHTML = [
     '<div class="settings-section">',
-    '  <div class="settings-section-title">AI Autocomplete</div>',
-    '  <div class="settings-row">',
-    '    <label>Enable AI suggestions</label>',
-    '    <input type="checkbox" id="setting-ai-autocomplete" />',
-    '  </div>',
-    '  <div class="settings-row">',
-    '    <label>API Key</label>',
-    '    <input type="password" id="setting-ai-api-key" class="settings-input-wide" placeholder="sk-ant-..." />',
-    '    <span style="font-size:10px;color:#888;margin-left:4px">Stored locally in plaintext</span>',
-    '  </div>',
-    '  <div class="settings-row">',
-    '    <label>Provider</label>',
-    '    <select id="setting-ai-provider" class="settings-select">',
+    '  <div class="settings-section-title" style="font-size:14px;font-weight:600;margin-bottom:12px;color:#eee">AI Configuration</div>',
+    '  <div class="settings-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">',
+    '    <label style="min-width:100px">Provider</label>',
+    '    <select id="setting-ai-provider" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid #333;background:#111;color:#eee;font-size:13px">',
     '      <option value="anthropic">Anthropic (Claude)</option>',
+    '      <option value="openai">OpenAI</option>',
+    '      <option value="google">Google (Gemini)</option>',
+    '      <option value="ollama">Ollama (Local)</option>',
+    '      <option value="openai-compatible">OpenAI-Compatible</option>',
     '    </select>',
     '  </div>',
-    '  <div class="settings-row" style="opacity:0.6">',
-    '    <label style="font-size:11px">Ghost text appears as you type. Press Tab to accept.</label>',
+    '  <div class="settings-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">',
+    '    <label style="min-width:100px">Model</label>',
+    '    <select id="setting-ai-model" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid #333;background:#111;color:#eee;font-size:13px">',
+    '    </select>',
     '  </div>',
-    '  <div class="settings-row" style="opacity:0.6">',
-    '    <label style="font-size:10px;color:#f5a623">When AI is enabled, commands and terminal context are sent to Anthropic\'s API.</label>',
+    '  <div class="settings-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">',
+    '    <label style="min-width:100px">API Key</label>',
+    '    <input type="password" id="setting-ai-api-key" placeholder="Enter API key..." style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid #333;background:#111;color:#eee;font-size:13px;font-family:monospace" />',
+    '  </div>',
+    '  <div class="settings-row" id="setting-ai-baseurl-row" style="display:none;align-items:center;gap:10px;margin-bottom:8px">',
+    '    <label style="min-width:100px">Base URL</label>',
+    '    <input type="text" id="setting-ai-baseurl" placeholder="http://localhost:11434" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid #333;background:#111;color:#eee;font-size:13px" />',
+    '  </div>',
+    '  <div style="border-top:1px solid #333;margin:12px 0;padding-top:12px">',
+    '    <div class="settings-row" style="display:flex;align-items:center;gap:10px;margin-bottom:8px">',
+    '      <label style="min-width:100px">Autocomplete</label>',
+    '      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#aaa">',
+    '        <input type="checkbox" id="setting-ai-autocomplete" style="accent-color:#00f0ff" />',
+    '        Enable ghost text suggestions (Tab to accept)',
+    '      </label>',
+    '    </div>',
+    '  </div>',
+    '  <div style="font-size:10px;color:#f5a623;margin-top:4px">',
+    '    When AI is enabled, commands and terminal context are sent to the selected provider.',
     '  </div>',
     '</div>'
   ].join("\n");
 
   ctx.addSettingsSection(settingsHTML);
 
-  // Populate settings values and bind change handlers.
-  // Use a short delay to ensure the DOM is ready after injection.
+  function updateModelDropdown(providerEl, modelEl) {
+    var models = PROVIDER_MODELS[providerEl.value] || [];
+    modelEl.innerHTML = "";
+    if (providerEl.value === "openai-compatible") {
+      // Free text: add an editable option
+      var opt = document.createElement("option");
+      opt.value = aiModel || "";
+      opt.textContent = aiModel || "(enter model name)";
+      modelEl.appendChild(opt);
+      modelEl.setAttribute("contenteditable", "false");
+      // Add a text input next to it
+      var existing = document.getElementById("setting-ai-model-custom");
+      if (!existing) {
+        var inp = document.createElement("input");
+        inp.type = "text";
+        inp.id = "setting-ai-model-custom";
+        inp.placeholder = "e.g. gpt-4o, llama3, etc.";
+        inp.value = aiModel || "";
+        inp.style.cssText = "flex:1;padding:6px 10px;border-radius:6px;border:1px solid #333;background:#111;color:#eee;font-size:13px;margin-left:6px";
+        inp.addEventListener("change", function () {
+          aiModel = inp.value.trim();
+          ctx.settings.aiModel = aiModel;
+          ctx.saveSettings();
+        });
+        modelEl.parentNode.appendChild(inp);
+      }
+      modelEl.style.display = "none";
+    } else {
+      modelEl.style.display = "";
+      var customInp = document.getElementById("setting-ai-model-custom");
+      if (customInp) customInp.remove();
+      for (var i = 0; i < models.length; i++) {
+        var opt = document.createElement("option");
+        opt.value = models[i].value;
+        opt.textContent = models[i].label;
+        modelEl.appendChild(opt);
+      }
+      if (aiModel && providerEl.value === aiProvider) modelEl.value = aiModel;
+    }
+  }
+
+  function updateBaseUrlVisibility(provider) {
+    var row = document.getElementById("setting-ai-baseurl-row");
+    var keyRow = document.getElementById("setting-ai-api-key");
+    if (row) row.style.display = (provider === "ollama" || provider === "openai-compatible") ? "flex" : "none";
+    if (keyRow) keyRow.placeholder = provider === "ollama" ? "(optional for local)" : "Enter API key...";
+  }
+
   setTimeout(function () {
     var checkEl = document.getElementById("setting-ai-autocomplete");
     var keyEl = document.getElementById("setting-ai-api-key");
     var providerEl = document.getElementById("setting-ai-provider");
+    var modelEl = document.getElementById("setting-ai-model");
+    var baseUrlEl = document.getElementById("setting-ai-baseurl");
+
+    if (providerEl) {
+      providerEl.value = aiProvider;
+      updateModelDropdown(providerEl, modelEl);
+      updateBaseUrlVisibility(aiProvider);
+      providerEl.addEventListener("change", function () {
+        aiProvider = providerEl.value;
+        ctx.settings.aiProvider = aiProvider;
+        // Reset model to default for new provider
+        aiModel = "";
+        ctx.settings.aiModel = "";
+        updateModelDropdown(providerEl, modelEl);
+        updateBaseUrlVisibility(aiProvider);
+        ctx.saveSettings();
+      });
+    }
+
+    if (modelEl) {
+      modelEl.addEventListener("change", function () {
+        aiModel = modelEl.value;
+        ctx.settings.aiModel = aiModel;
+        ctx.saveSettings();
+      });
+    }
 
     if (checkEl) {
       checkEl.checked = aiAutocomplete;
@@ -1056,15 +1163,15 @@ exports.activate = function (ctx) {
       });
     }
 
-    if (providerEl) {
-      providerEl.value = aiProvider;
-      providerEl.addEventListener("change", function () {
-        aiProvider = providerEl.value;
-        ctx.settings.aiProvider = aiProvider;
+    if (baseUrlEl) {
+      baseUrlEl.value = aiBaseUrl;
+      baseUrlEl.addEventListener("change", function () {
+        aiBaseUrl = baseUrlEl.value.trim();
+        ctx.settings.aiBaseUrl = aiBaseUrl;
         ctx.saveSettings();
       });
     }
-  }, 50);
+  }, 100);
 
   // ─────────────────────────────────────────────────────────────────────────
   // G. Command Palette + K. Keyboard Shortcut
