@@ -3131,6 +3131,152 @@
     }
 
     // ============================================================
+    // EXTENSIONS / PLUGINS PANEL
+    // ============================================================
+    const pluginsPanel = document.getElementById("plugins-panel");
+    const pluginsBody = document.getElementById("plugins-body");
+    let pluginsNeedRestart = false;
+
+    function openPluginsPanel() {
+      pluginsPanel.classList.add("visible");
+      refreshPluginsPanel();
+    }
+
+    function closePluginsPanel() {
+      pluginsPanel.classList.remove("visible");
+      if (activeId && panes.has(activeId)) panes.get(activeId).term.focus();
+    }
+
+    async function refreshPluginsPanel() {
+      pluginsBody.innerHTML = '<div class="plugins-empty">Loading extensions...</div>';
+      try {
+        const [available, installed] = await Promise.all([
+          window.terminator.listAvailablePlugins(),
+          window.terminator.loadPlugins(),
+        ]);
+        const installedNames = new Set(installed.map(p => p.manifest.name));
+        pluginsBody.innerHTML = "";
+
+        if (pluginsNeedRestart) {
+          const notice = document.createElement("div");
+          notice.className = "plugin-restart-notice";
+          notice.textContent = "Restart Terminator to apply changes";
+          pluginsBody.appendChild(notice);
+        }
+
+        // Available plugins (from bundled store)
+        if (available.length > 0) {
+          const title = document.createElement("div");
+          title.className = "plugins-section-title";
+          title.textContent = "Available Extensions";
+          pluginsBody.appendChild(title);
+
+          for (const plugin of available) {
+            const card = createPluginCard(plugin.manifest, plugin.dir, installedNames.has(plugin.manifest.name));
+            pluginsBody.appendChild(card);
+          }
+        }
+
+        // Installed plugins that aren't in the bundled store
+        const customInstalled = installed.filter(p => !available.find(a => a.manifest.name === p.manifest.name));
+        if (customInstalled.length > 0) {
+          const title = document.createElement("div");
+          title.className = "plugins-section-title";
+          title.textContent = "Custom Plugins";
+          pluginsBody.appendChild(title);
+
+          for (const plugin of customInstalled) {
+            const card = createPluginCard(plugin.manifest, plugin.dir, true);
+            pluginsBody.appendChild(card);
+          }
+        }
+
+        if (available.length === 0 && customInstalled.length === 0) {
+          pluginsBody.innerHTML = '<div class="plugins-empty">No extensions available</div>';
+        }
+      } catch (err) {
+        pluginsBody.innerHTML = `<div class="plugins-empty">Error loading extensions: ${err.message}</div>`;
+      }
+    }
+
+    function createPluginCard(manifest, dir, isInstalled) {
+      const card = document.createElement("div");
+      card.className = "plugin-card";
+
+      const header = document.createElement("div");
+      header.className = "plugin-card-header";
+
+      const info = document.createElement("div");
+      info.className = "plugin-card-info";
+
+      const nameRow = document.createElement("div");
+      nameRow.className = "plugin-card-name";
+      nameRow.textContent = manifest.name;
+      if (manifest.version) {
+        const ver = document.createElement("span");
+        ver.className = "plugin-card-version";
+        ver.textContent = "v" + manifest.version;
+        nameRow.appendChild(ver);
+      }
+
+      const desc = document.createElement("div");
+      desc.className = "plugin-card-desc";
+      desc.textContent = manifest.description || "No description";
+
+      const meta = document.createElement("div");
+      meta.className = "plugin-card-meta";
+      const badge = document.createElement("span");
+      badge.className = "plugin-type-badge " + (manifest.type || "");
+      badge.textContent = manifest.type || "unknown";
+      meta.appendChild(badge);
+
+      if (isInstalled) {
+        const installedBadge = document.createElement("span");
+        installedBadge.className = "plugin-installed-badge";
+        installedBadge.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Installed';
+        meta.appendChild(installedBadge);
+      }
+
+      info.appendChild(nameRow);
+      info.appendChild(desc);
+      info.appendChild(meta);
+
+      const btn = document.createElement("button");
+      btn.className = "plugin-install-btn " + (isInstalled ? "uninstall" : "install");
+      btn.textContent = isInstalled ? "Uninstall" : "Install";
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = isInstalled ? "Removing..." : "Installing...";
+        try {
+          const result = isInstalled
+            ? await window.terminator.uninstallPlugin(dir)
+            : await window.terminator.installPlugin(dir);
+          if (result.error) {
+            showToast("Error: " + result.error);
+            btn.disabled = false;
+            btn.textContent = isInstalled ? "Uninstall" : "Install";
+          } else {
+            pluginsNeedRestart = true;
+            showToast(isInstalled ? "Extension removed — restart to apply" : "Extension installed — restart to apply");
+            refreshPluginsPanel();
+          }
+        } catch (err) {
+          showToast("Error: " + err.message);
+          btn.disabled = false;
+          btn.textContent = isInstalled ? "Uninstall" : "Install";
+        }
+      });
+
+      header.appendChild(info);
+      header.appendChild(btn);
+      card.appendChild(header);
+      return card;
+    }
+
+    document.getElementById("plugins-close").addEventListener("click", closePluginsPanel);
+    document.getElementById("plugins-refresh").addEventListener("click", refreshPluginsPanel);
+
+    // ============================================================
     // PIPELINE RUNNER (agent-ad954acf)
     // ============================================================
     const pipelinePanel = document.getElementById("pipeline-panel");
@@ -4495,6 +4641,7 @@
     // Add Settings to command palette
     commands.push(
       { label: "Settings", shortcut: "Cmd+,", action: () => openSettings(), category: "System" },
+      { label: "Extensions", action: () => openPluginsPanel(), category: "System" },
       { label: "Check for Updates", action: async () => {
         try {
           const result = await window.terminator.checkForUpdates();

@@ -77,5 +77,8 @@ contextBridge.exposeInMainWorld("terminator", {
   // Plugin system
   loadPlugins: () => ipcRenderer.invoke("load-plugins"),
   getPluginCode: (name) => ipcRenderer.invoke("get-plugin-code", name),
+  listAvailablePlugins: () => ipcRenderer.invoke("list-available-plugins"),
+  installPlugin: (dir) => ipcRenderer.invoke("install-plugin", dir),
+  uninstallPlugin: (dir) => ipcRenderer.invoke("uninstall-plugin", dir),
   onUpdateStatus: (callback) => ipcRenderer.on("update-status", (_, data) => callback(data)),
 });

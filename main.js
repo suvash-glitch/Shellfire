@@ -1372,7 +1372,7 @@ function loadPlugins() {
       try {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
         if (!manifest.name || !manifest.type || !manifest.main) continue;
-        if (!["theme", "command", "statusbar"].includes(manifest.type)) continue;
+        if (!["theme", "command", "statusbar", "extension"].includes(manifest.type)) continue;
         plugins.push({ dir: entry.name, manifest });
       } catch {
         // Skip plugins with invalid or missing manifests
@@ -1401,6 +1401,57 @@ ipcMain.handle("get-plugin-code", (_, pluginName) => {
     return { code };
   } catch {
     return { error: "Could not read plugin code" };
+  }
+});
+
+// Plugin store: list available (bundled) plugins
+ipcMain.handle("list-available-plugins", () => {
+  const bundledDir = path.join(__dirname, "examples", "plugins");
+  const available = [];
+  try {
+    const entries = fs.readdirSync(bundledDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const manifestPath = path.join(bundledDir, entry.name, "plugin.json");
+      try {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+        if (!manifest.name || !manifest.type || !manifest.main) continue;
+        const installed = fs.existsSync(path.join(PLUGINS_DIR, entry.name, "plugin.json"));
+        available.push({ dir: entry.name, manifest, installed });
+      } catch {}
+    }
+  } catch {}
+  return available;
+});
+
+// Install plugin: copy from bundled examples to user plugins dir
+ipcMain.handle("install-plugin", (_, pluginDir) => {
+  if (typeof pluginDir !== "string" || pluginDir.includes("..") || pluginDir.includes("/") || pluginDir.includes("\\")) {
+    return { error: "Invalid plugin name" };
+  }
+  const src = path.join(__dirname, "examples", "plugins", pluginDir);
+  const dest = path.join(PLUGINS_DIR, pluginDir);
+  try {
+    if (!fs.existsSync(src)) return { error: "Plugin not found" };
+    fs.cpSync(src, dest, { recursive: true });
+    return { ok: true };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
+// Uninstall plugin: remove from user plugins dir
+ipcMain.handle("uninstall-plugin", (_, pluginDir) => {
+  if (typeof pluginDir !== "string" || pluginDir.includes("..") || pluginDir.includes("/") || pluginDir.includes("\\")) {
+    return { error: "Invalid plugin name" };
+  }
+  const dest = path.join(PLUGINS_DIR, pluginDir);
+  try {
+    if (!fs.existsSync(dest)) return { error: "Plugin not found" };
+    fs.rmSync(dest, { recursive: true, force: true });
+    return { ok: true };
+  } catch (e) {
+    return { error: e.message };
   }
 });
 

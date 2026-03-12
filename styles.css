@@ -1450,6 +1450,70 @@
     .tab .error-dot.visible { display: inline-block; }
 
     /* ============================================================
+       Extensions / Plugins Panel
+       ============================================================ */
+    #plugins-panel { width: 380px; }
+    .plugin-card {
+      padding: 14px 16px; border-bottom: 1px solid #2a2a2a;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .plugin-card:last-child { border-bottom: none; }
+    .plugin-card-header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    }
+    .plugin-card-info { flex: 1; min-width: 0; }
+    .plugin-card-name {
+      font-size: 13px; font-weight: 600; color: #eee;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .plugin-card-version {
+      font-size: 10px; color: #666; font-family: "SF Mono", monospace;
+    }
+    .plugin-card-desc {
+      font-size: 11px; color: #888; line-height: 1.5; margin-top: 2px;
+    }
+    .plugin-card-meta {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .plugin-type-badge {
+      font-size: 9px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 2px 7px; border-radius: 4px;
+      background: rgba(0,240,255,0.1); color: #00f0ff;
+    }
+    .plugin-type-badge.theme { background: rgba(167,139,250,0.15); color: #a78bfa; }
+    .plugin-type-badge.command { background: rgba(0,230,118,0.12); color: #00e676; }
+    .plugin-type-badge.statusbar { background: rgba(255,159,67,0.12); color: #ff9f43; }
+    .plugin-type-badge.extension { background: rgba(0,240,255,0.12); color: #00f0ff; }
+    .plugin-install-btn {
+      font-size: 11px; font-weight: 600; padding: 5px 14px; border-radius: 6px;
+      border: none; cursor: pointer; white-space: nowrap;
+      transition: all .2s;
+    }
+    .plugin-install-btn.install {
+      background: #00f0ff; color: #0a0a14;
+    }
+    .plugin-install-btn.install:hover { background: #33f5ff; }
+    .plugin-install-btn.uninstall {
+      background: rgba(255,69,58,0.15); color: #ff453a;
+    }
+    .plugin-install-btn.uninstall:hover { background: rgba(255,69,58,0.25); }
+    .plugin-install-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .plugin-installed-badge {
+      font-size: 10px; color: #00e676; display: flex; align-items: center; gap: 4px;
+    }
+    .plugins-empty {
+      padding: 32px 16px; text-align: center; color: #555; font-size: 12px;
+    }
+    .plugins-section-title {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.8px; color: #555; padding: 12px 16px 6px;
+    }
+    .plugin-restart-notice {
+      font-size: 10px; color: #f5a623; padding: 8px 16px; text-align: center;
+      background: rgba(245,166,35,0.08); border-bottom: 1px solid #2a2a2a;
+    }
+
+    /* ============================================================
        Sparklines (agent-a219a98e)
        ============================================================ */
     /* Pane Sparkline */
