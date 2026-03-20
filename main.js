@@ -1505,7 +1505,7 @@ let zenPreBounds = null;
 let zenWasMaximized = false;
 let zenWasFullScreen = false;
 
-ipcMain.handle("toggle-zen-mode", () => {
+ipcMain.handle("toggle-zen-mode", async () => {
   if (!mainWindow) return false;
   zenModeActive = !zenModeActive;
   if (zenModeActive) {
@@ -1514,7 +1514,11 @@ ipcMain.handle("toggle-zen-mode", () => {
     zenWasMaximized = mainWindow.isMaximized();
     zenPreBounds = mainWindow.getBounds();
     // Exit native fullscreen first (it locks to one display)
-    if (zenWasFullScreen) mainWindow.setFullScreen(false);
+    if (zenWasFullScreen) {
+      mainWindow.setFullScreen(false);
+      // Wait for macOS fullscreen animation to finish
+      await new Promise(r => setTimeout(r, 500));
+    }
     // Calculate combined bounds across ALL displays
     const displays = screen.getAllDisplays();
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -1524,17 +1528,20 @@ ipcMain.handle("toggle-zen-mode", () => {
       maxX = Math.max(maxX, d.bounds.x + d.bounds.width);
       maxY = Math.max(maxY, d.bounds.y + d.bounds.height);
     }
+    // Hide window chrome and span all displays
     if (process.platform === "darwin") {
-      mainWindow.setSimpleFullScreen(true);
+      mainWindow.setWindowButtonVisibility(false);
     }
     mainWindow.setAlwaysOnTop(true, "screen-saver");
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     mainWindow.setBounds({ x: minX, y: minY, width: maxX - minX, height: maxY - minY });
     mainWindow.setMenuBarVisibility(false);
   } else {
     // Restore previous state
     mainWindow.setAlwaysOnTop(false);
+    mainWindow.setVisibleOnAllWorkspaces(false);
     if (process.platform === "darwin") {
-      mainWindow.setSimpleFullScreen(false);
+      mainWindow.setWindowButtonVisibility(true);
     }
     mainWindow.setMenuBarVisibility(true);
     if (zenPreBounds) mainWindow.setBounds(zenPreBounds);
