@@ -1619,6 +1619,11 @@
       cursor: pointer; white-space: nowrap; font-weight: 500; transition: all 0.15s;
     }
     .error-toast-btn:hover { background: rgba(255,69,58,0.35); color: #fff; }
+    .error-toast-btn.no-suggest-btn {
+      background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15);
+      color: var(--t-muted);
+    }
+    .error-toast-btn.no-suggest-btn:hover { background: rgba(255,255,255,0.12); color: var(--t-fg); }
     .error-toast-close {
       background: none; border: none; color: var(--t-fg); opacity: 0.4; cursor: pointer; padding: 2px;
       font-size: 14px; line-height: 1;

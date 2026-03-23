@@ -1149,6 +1149,7 @@
       { label: "Cron Manager", action: () => openCronManager(), category: "Tools" },
       { label: "Toggle Skip Permissions", action: () => toggleSkipPermissions(), category: "Tools" },
       { label: "Toggle Copy on Select", action: () => { copyOnSelect = !copyOnSelect; showToast(copyOnSelect ? "Copy on select ON" : "Copy on select OFF"); }, category: "Tools" },
+      { label: "Toggle AI Suggestions", action: () => { aiSuggestions = !aiSuggestions; settings.aiSuggestions = aiSuggestions; window.terminator.saveSettings(settings); showToast(aiSuggestions ? "AI suggestions ON" : "AI suggestions OFF"); }, category: "Tools" },
       // Session
       { label: "Save Session", shortcut: "Cmd+Shift+S", action: () => saveCurrentSession(), category: "Session" },
       { label: "Restore Session", action: () => restoreSession(), category: "Session" },
@@ -3007,8 +3008,10 @@
     // ============================================================
     const errorPatterns = /(?:error:|Error:|ERROR|FAILED|failed|command not found|No such file|Permission denied|ENOENT|EACCES|TypeError|SyntaxError|segfault|panic|traceback|exception)/i;
     const ERROR_DEBOUNCE_MS = 5000;
+    let aiSuggestions = true;
 
     function detectErrors(paneId, data) {
+      if (!aiSuggestions) return;
       const clean = data.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
       if (!errorPatterns.test(clean)) return;
 
@@ -3031,12 +3034,19 @@
 
       const toast = document.createElement("div");
       toast.className = "error-toast";
-      toast.innerHTML = `<span class="error-toast-msg">${escHtml(errorSnippet)}</span>${_extHooks.errorDetected.length ? '<button class="error-toast-btn">Ask AI</button>' : ''}<button class="error-toast-close">x</button>`;
+      toast.innerHTML = `<span class="error-toast-msg">${escHtml(errorSnippet)}</span>${_extHooks.errorDetected.length ? '<button class="error-toast-btn">Ask AI</button>' : ''}<button class="error-toast-btn no-suggest-btn">No Suggestions</button><button class="error-toast-close">x</button>`;
       toast.querySelector(".error-toast-close").addEventListener("click", () => toast.remove());
-      const askBtn = toast.querySelector(".error-toast-btn");
+      const askBtn = toast.querySelector(".error-toast-btn:not(.no-suggest-btn)");
       if (askBtn) askBtn.addEventListener("click", () => {
         toast.remove();
         for (const fn of _extHooks.errorDetected) fn(paneId, errorSnippet);
+      });
+      toast.querySelector(".no-suggest-btn").addEventListener("click", () => {
+        aiSuggestions = false;
+        settings.aiSuggestions = false;
+        window.terminator.saveSettings(settings);
+        toast.remove();
+        showToast("AI suggestions disabled");
       });
 
       const body = pane.el.querySelector(".pane-body");
@@ -4972,6 +4982,7 @@
       document.getElementById("setting-scrollback").value = settings.scrollback || 10000;
       document.getElementById("setting-buffer-limit").value = Math.round(bufferLimit / 1024);
       document.getElementById("setting-copy-on-select").checked = copyOnSelect;
+      document.getElementById("setting-ai-suggestions").checked = aiSuggestions;
       document.getElementById("setting-confirm-close").checked = confirmClose;
       document.getElementById("setting-auto-save").checked = settings.autoSaveSession !== false;
       document.getElementById("setting-auto-save-interval").value = autoSaveInterval;
@@ -5109,6 +5120,7 @@
       const newBufferKB = parseInt(document.getElementById("setting-buffer-limit").value);
 
       copyOnSelect = document.getElementById("setting-copy-on-select").checked;
+      aiSuggestions = document.getElementById("setting-ai-suggestions").checked;
       confirmClose = document.getElementById("setting-confirm-close").checked;
       autoSaveInterval = parseInt(document.getElementById("setting-auto-save-interval").value) || 60;
       bufferLimit = (newBufferKB || 512) * 1024;
@@ -5141,6 +5153,7 @@
         scrollback: newScrollback,
         bufferLimit: newBufferKB,
         copyOnSelect,
+        aiSuggestions,
         confirmClose,
         autoSaveSession: document.getElementById("setting-auto-save").checked,
         autoSaveInterval,
@@ -5179,7 +5192,7 @@
     ["setting-theme", "setting-font-size", "setting-cursor-style", "setting-scrollback", "setting-buffer-limit", "setting-auto-save-interval"].forEach(id => {
       document.getElementById(id).addEventListener("change", applySettings);
     });
-    ["setting-cursor-blink", "setting-copy-on-select", "setting-confirm-close", "setting-auto-save", "setting-ide-mode"].forEach(id => {
+    ["setting-cursor-blink", "setting-copy-on-select", "setting-ai-suggestions", "setting-confirm-close", "setting-auto-save", "setting-ide-mode"].forEach(id => {
       document.getElementById(id).addEventListener("change", applySettings);
     });
     document.getElementById("setting-font-family").addEventListener("blur", applySettings);
@@ -6218,6 +6231,7 @@
           settings = savedSettings;
           if (settings.copyOnSelect !== undefined) copyOnSelect = settings.copyOnSelect;
           if (settings.confirmClose !== undefined) confirmClose = settings.confirmClose;
+          if (settings.aiSuggestions !== undefined) aiSuggestions = settings.aiSuggestions;
           if (settings.autoSaveInterval) autoSaveInterval = settings.autoSaveInterval;
           if (settings.bufferLimit) bufferLimit = settings.bufferLimit * 1024;
           if (settings.keybindings) customKeybindings = settings.keybindings;
