@@ -138,6 +138,17 @@
       display: flex; align-items: center; justify-content: center;
     }
     .search-bar button:hover { background: rgba(255,255,255,0.12); color: var(--t-fg); }
+    .search-scope-btn {
+      font-size: 10px !important; font-weight: 600; padding: 3px 8px !important;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .search-scope-btn.active {
+      background: color-mix(in srgb, var(--t-accent) 20%, transparent) !important;
+      border-color: var(--t-accent) !important; color: var(--t-accent) !important; opacity: 1 !important;
+    }
+    .search-match-info {
+      font-size: 10px; color: var(--t-muted); white-space: nowrap; min-width: 40px;
+    }
 
     /* Command palette / Snippet runner overlay */
     .palette-overlay {
@@ -2486,4 +2497,58 @@
       .cron-panel { width: 95vw; max-width: 620px; }
       .paste-confirm-panel { width: 95vw; max-width: 480px; }
       .project-editor { width: 95vw; max-width: 380px; }
+    }
+
+    /* Update banner */
+    .update-banner {
+      position: fixed; bottom: 32px; right: 16px;
+      background: var(--t-ui); color: var(--t-fg);
+      padding: 10px 14px; border-radius: 10px;
+      font-size: 12px; font-weight: 500;
+      display: none; align-items: center; gap: 10px;
+      z-index: 2001;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      border: 1px solid var(--t-border);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      animation: updateSlideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .update-banner.visible { display: flex; }
+    @keyframes updateSlideIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .update-banner-text { white-space: nowrap; }
+    .update-banner-btn {
+      background: var(--t-accent); color: #fff; border: none;
+      padding: 4px 12px; border-radius: 6px; font-size: 11px;
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+      transition: opacity 0.15s ease;
+    }
+    .update-banner-btn:hover { opacity: 0.85; }
+    .update-banner-dismiss {
+      background: none; border: none; color: var(--t-muted);
+      font-size: 16px; cursor: pointer; padding: 0 2px;
+      line-height: 1; opacity: 0.6; transition: opacity 0.15s ease;
+    }
+    .update-banner-dismiss:hover { opacity: 1; }
+
+    /* Update indicator in bottombar */
+    .update-indicator {
+      display: none; font-weight: 600; font-size: 10px;
+      cursor: pointer; padding: 1px 6px; border-radius: 4px;
+      transition: all 0.2s ease; opacity: 1;
+    }
+    .update-indicator.visible { display: inline-flex; align-items: center; gap: 4px; }
+    .update-indicator.available {
+      color: var(--t-accent); background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .update-indicator.downloaded {
+      color: #30d158; background: rgba(48,209,88,0.08);
+      border: 1px solid rgba(48,209,88,0.15);
+      animation: pulse 1.5s infinite;
+    }
+    .update-indicator.downloading {
+      color: var(--t-accent); background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
     }

@@ -89,8 +89,10 @@
 
   <div class="search-bar" id="search-bar">
     <input type="text" id="search-input" placeholder="Search in terminal..." />
+    <button id="search-all-toggle" class="search-scope-btn" title="Search all panes">All</button>
     <button id="search-prev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg></button>
     <button id="search-next"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <span id="search-match-info" class="search-match-info"></span>
     <button id="search-close"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
 
@@ -185,6 +187,11 @@
 
   <div class="context-menu" id="context-menu"></div>
   <div class="toast" id="toast"></div>
+  <div class="update-banner" id="update-banner">
+    <span class="update-banner-text" id="update-banner-text"></span>
+    <button class="update-banner-btn" id="update-banner-btn"></button>
+    <button class="update-banner-dismiss" id="update-banner-dismiss" title="Dismiss">&times;</button>
+  </div>
 
   <!-- Settings Modal (IntelliJ-style) -->
   <div class="settings-overlay" id="settings-overlay">
@@ -595,6 +602,10 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
           Load
         </button>
+        <button class="pl-tb-btn" id="pipeline-export-sh" title="Export as .sh">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg>
+          Export .sh
+        </button>
         <button class="pl-tb-btn" id="pipeline-import-sh" title="Import .sh File">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
           Import .sh
@@ -795,6 +806,7 @@
     <span class="bottombar-widget" id="widget-k8s" title="Kubernetes context"></span>
     <span class="bottombar-widget" id="widget-aws" title="AWS profile"></span>
     <span class="bottombar-widget" id="widget-clock" title="Clock"></span>
+    <span class="update-indicator" id="update-indicator" title="Update status"></span>
     <span id="pane-count" style="font-family:'SF Mono',monospace"></span>
   </div>
 

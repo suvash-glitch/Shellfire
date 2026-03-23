@@ -22,19 +22,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Rebuild native modules
+        run: npm run rebuild
+
+      - name: Lint
+        run: npm run lint
+
       - name: Run tests
         run: npm test
-
-      - name: Syntax check main files
-        shell: bash
-        run: |
-          node -c main.js
-          node -c renderer.js
-          node -c preload.js
-          node -c bin/terminator-cli.js

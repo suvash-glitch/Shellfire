@@ -131,8 +131,15 @@ app.whenReady().then(createWindow);
 // Auto-update check (only when packaged)
 app.whenReady().then(() => {
   if (autoUpdater && app.isPackaged) {
-    autoUpdater.autoDownload = true;
+    autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
+
+    autoUpdater.on("checking-for-update", () => {
+      log("info", "Checking for update...");
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("update-status", { status: "checking" });
+      }
+    });
 
     autoUpdater.on("update-available", (info) => {
       log("info", `Update available: v${info.version}`);
@@ -141,32 +148,40 @@ app.whenReady().then(() => {
       }
     });
 
+    autoUpdater.on("download-progress", (progress) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("update-status", {
+          status: "downloading",
+          percent: Math.round(progress.percent),
+        });
+      }
+    });
+
     autoUpdater.on("update-downloaded", (info) => {
       log("info", `Update downloaded: v${info.version}`);
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("update-status", { status: "downloaded", version: info.version });
-        const { dialog } = require("electron");
-        dialog.showMessageBox(mainWindow, {
-          type: "info",
-          title: "Update Ready",
-          message: `Terminator v${info.version} has been downloaded.`,
-          detail: "Restart the app to apply the update.",
-          buttons: ["Restart Now", "Later"],
-          defaultId: 0,
-        }).then(({ response }) => {
-          if (response === 0) autoUpdater.quitAndInstall();
-        });
+      }
+    });
+
+    autoUpdater.on("update-not-available", () => {
+      log("info", "No update available");
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("update-status", { status: "up-to-date" });
       }
     });
 
     autoUpdater.on("error", (err) => {
       log("error", "Auto-update error:", err.message);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("update-status", { status: "error", message: err.message });
+      }
     });
 
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    autoUpdater.checkForUpdates().catch(() => {});
     // Check for updates every 4 hours
     setInterval(() => {
-      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+      autoUpdater.checkForUpdates().catch(() => {});
     }, 4 * 60 * 60 * 1000);
   }
 });
@@ -503,6 +518,19 @@ ipcMain.handle("check-for-updates", async () => {
   } catch { return { available: false, reason: "check-failed" }; }
 });
 
+ipcMain.handle("download-update", async () => {
+  if (!autoUpdater || !app.isPackaged) return { ok: false };
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
+ipcMain.handle("install-update", () => {
+  if (!autoUpdater || !app.isPackaged) return;
+  autoUpdater.quitAndInstall();
+});
+
 // Create terminal with optional cwd
 ipcMain.handle("create-terminal", (_, cwd, restoreCmd) => {
   const shellPath = process.platform === "win32"
@@ -804,6 +832,20 @@ ipcMain.handle("find-files", async (_, query, dirs) => {
       .slice(0, 50)
       .map(f => ({ path: f, name: f.split("/").pop(), dir: f.replace(/\/[^/]+$/, "").replace(homeDir, "~") }));
   } catch { return []; }
+});
+
+// Export pipeline as shell script
+ipcMain.handle("export-sh", async (_, content, suggestedName) => {
+  const { dialog } = require("electron");
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: path.join(os.homedir(), "Desktop", suggestedName || "pipeline.sh"),
+    filters: [{ name: "Shell Script", extensions: ["sh"] }],
+  });
+  if (!result.canceled && result.filePath) {
+    fs.writeFileSync(result.filePath, content, { mode: 0o755 });
+    return result.filePath;
+  }
+  return null;
 });
 
 // Save pane output to file

@@ -855,6 +855,8 @@
       renderLayout();
       if (activeId !== null) setActive(activeId);
       updateWelcomeScreen();
+      if (typeof scheduleEnrichTabData === "function") scheduleEnrichTabData();
+      if (typeof scheduleSmartNames === "function") scheduleSmartNames();
       setTimeout(() => updateIdeSidebar(), 100);
     }
 
@@ -903,15 +905,64 @@
     // SEARCH
     // ============================================================
     const searchBar = document.getElementById("search-bar"), searchInput = document.getElementById("search-input");
-    function openSearch() { searchBar.classList.add("visible"); searchInput.focus(); searchInput.select(); }
-    function closeSearch() { searchBar.classList.remove("visible"); if (activeId && panes.has(activeId)) { try { panes.get(activeId).searchAddon?.clearDecorations(); } catch {} panes.get(activeId).term.focus(); } }
-    searchInput.addEventListener("input", () => { if (activeId && panes.has(activeId)) panes.get(activeId).searchAddon?.findNext(searchInput.value); });
-    searchInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); if (activeId && panes.has(activeId)) { e.shiftKey ? panes.get(activeId).searchAddon?.findPrevious(searchInput.value) : panes.get(activeId).searchAddon?.findNext(searchInput.value); } }
-      else if (e.key === "Escape") closeSearch();
+    const searchAllToggle = document.getElementById("search-all-toggle");
+    const searchMatchInfo = document.getElementById("search-match-info");
+    let searchAllMode = false;
+    let searchAllMatches = [];
+    let searchAllIdx = 0;
+
+    searchAllToggle.addEventListener("click", () => {
+      searchAllMode = !searchAllMode;
+      searchAllToggle.classList.toggle("active", searchAllMode);
+      searchInput.placeholder = searchAllMode ? "Search all panes..." : "Search in terminal...";
+      if (searchAllMode && searchInput.value) searchAllPanes(searchInput.value);
+      else { searchMatchInfo.textContent = ""; for (const [, p] of panes) { try { p.searchAddon?.clearDecorations(); } catch {} } }
     });
-    document.getElementById("search-next").addEventListener("click", () => { if (activeId && panes.has(activeId)) panes.get(activeId).searchAddon?.findNext(searchInput.value); });
-    document.getElementById("search-prev").addEventListener("click", () => { if (activeId && panes.has(activeId)) panes.get(activeId).searchAddon?.findPrevious(searchInput.value); });
+
+    function searchAllPanes(query) {
+      searchAllMatches = []; searchAllIdx = 0;
+      if (!query) { searchMatchInfo.textContent = ""; for (const [, p] of panes) { try { p.searchAddon?.clearDecorations(); } catch {} } return; }
+      for (const [id, pane] of panes) {
+        try { if (pane.searchAddon?.findNext(query)) searchAllMatches.push(id); } catch {}
+      }
+      if (searchAllMatches.length > 0) {
+        searchMatchInfo.textContent = `${searchAllMatches.length} pane${searchAllMatches.length > 1 ? "s" : ""}`;
+        setActive(searchAllMatches[0]);
+      } else {
+        searchMatchInfo.textContent = "No matches";
+      }
+    }
+
+    function searchAllNav(dir) {
+      if (searchAllMatches.length === 0) return;
+      const cur = panes.get(activeId);
+      if (cur) { const found = dir > 0 ? cur.searchAddon?.findNext(searchInput.value) : cur.searchAddon?.findPrevious(searchInput.value); if (found) return; }
+      const ci = searchAllMatches.indexOf(activeId);
+      searchAllIdx = (ci + dir + searchAllMatches.length) % searchAllMatches.length;
+      setActive(searchAllMatches[searchAllIdx]);
+      const p = panes.get(searchAllMatches[searchAllIdx]);
+      if (p) dir > 0 ? p.searchAddon?.findNext(searchInput.value) : p.searchAddon?.findPrevious(searchInput.value);
+    }
+
+    function openSearch() { searchBar.classList.add("visible"); searchInput.focus(); searchInput.select(); }
+    function closeSearch() {
+      searchBar.classList.remove("visible"); searchMatchInfo.textContent = "";
+      for (const [, p] of panes) { try { p.searchAddon?.clearDecorations(); } catch {} }
+      if (activeId && panes.has(activeId)) panes.get(activeId).term.focus();
+    }
+    searchInput.addEventListener("input", () => {
+      if (searchAllMode) searchAllPanes(searchInput.value);
+      else if (activeId && panes.has(activeId)) panes.get(activeId).searchAddon?.findNext(searchInput.value);
+    });
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (searchAllMode) { searchAllNav(e.shiftKey ? -1 : 1); }
+        else if (activeId && panes.has(activeId)) { e.shiftKey ? panes.get(activeId).searchAddon?.findPrevious(searchInput.value) : panes.get(activeId).searchAddon?.findNext(searchInput.value); }
+      } else if (e.key === "Escape") closeSearch();
+    });
+    document.getElementById("search-next").addEventListener("click", () => { searchAllMode ? searchAllNav(1) : (activeId && panes.has(activeId) && panes.get(activeId).searchAddon?.findNext(searchInput.value)); });
+    document.getElementById("search-prev").addEventListener("click", () => { searchAllMode ? searchAllNav(-1) : (activeId && panes.has(activeId) && panes.get(activeId).searchAddon?.findPrevious(searchInput.value)); });
     document.getElementById("search-close").addEventListener("click", closeSearch);
 
     // ============================================================
@@ -1121,6 +1172,7 @@
       { label: "Save Pane Output", action: () => captureOutput(), category: "Pane" },
       // Search & Find
       { label: "Find in Terminal", shortcut: "Cmd+F", action: () => openSearch(), category: "Search" },
+      { label: "Find in All Panes", shortcut: "Cmd+Shift+G", action: () => { searchAllMode = true; searchAllToggle.classList.add("active"); searchInput.placeholder = "Search all panes..."; openSearch(); }, category: "Search" },
       { label: "Search All Panes", action: () => openCrossPaneSearch(), category: "Search" },
       { label: "File Finder", shortcut: "Cmd+Shift+F", action: () => openFileFinder(), category: "Search" },
       { label: "File Preview", action: () => openFilePreview(), category: "Search" },
@@ -1450,44 +1502,56 @@
     }
 
     // Enrich tab data periodically (process, git, duration)
+    // Batches concurrent IPC calls (max 5 at a time) and scales interval with pane count
     async function enrichTabData() {
-      for (const [id, pane] of panes) {
-        try {
-          const [proc, cwd] = await Promise.all([
-            window.terminator.getProcess(id),
-            window.terminator.getCwd(id),
-          ]);
-          const oldProc = pane._lastProcess;
-          pane._lastProcess = proc || null;
-
-          // Track command start time
-          if (proc && proc !== "zsh" && proc !== "bash" && proc !== "fish") {
-            if (!pane._commandStart || oldProc !== proc) pane._commandStart = Date.now();
-          } else {
-            pane._commandStart = null;
-          }
-
-          // Git info
-          if (cwd) {
-            const [branch, status] = await Promise.all([
-              window.terminator.getGitBranch(cwd),
-              window.terminator.getGitStatus(cwd),
+      const ids = [...panes.keys()];
+      for (let i = 0; i < ids.length; i += 5) {
+        await Promise.all(ids.slice(i, i + 5).map(async (id) => {
+          const pane = panes.get(id);
+          if (!pane) return;
+          try {
+            const [proc, cwd] = await Promise.all([
+              window.terminator.getProcess(id),
+              window.terminator.getCwd(id),
             ]);
-            pane._lastGitBranch = branch || null;
-            pane._lastGitDirty = status === "dirty";
-          } else {
+            const oldProc = pane._lastProcess;
+            pane._lastProcess = proc || null;
+
+            // Track command start time
+            if (proc && proc !== "zsh" && proc !== "bash" && proc !== "fish") {
+              if (!pane._commandStart || oldProc !== proc) pane._commandStart = Date.now();
+            } else {
+              pane._commandStart = null;
+            }
+
+            // Git info
+            if (cwd) {
+              const [branch, status] = await Promise.all([
+                window.terminator.getGitBranch(cwd),
+                window.terminator.getGitStatus(cwd),
+              ]);
+              pane._lastGitBranch = branch || null;
+              pane._lastGitDirty = status === "dirty";
+            } else {
+              pane._lastGitBranch = null;
+              pane._lastGitDirty = false;
+            }
+          } catch {
+            pane._lastProcess = null;
             pane._lastGitBranch = null;
-            pane._lastGitDirty = false;
           }
-        } catch {
-          pane._lastProcess = null;
-          pane._lastGitBranch = null;
-        }
+        }));
       }
       updateTabBar();
     }
-    // Stagger from pane title updates (runs at 4s offset from the 5s title update)
-    setTimeout(() => setInterval(enrichTabData, 5000), 2000);
+    // Scale interval with pane count: 5s base, +1s per pane above 5
+    let enrichTimer = null;
+    function scheduleEnrichTabData() {
+      if (enrichTimer) clearInterval(enrichTimer);
+      const interval = Math.min(5000 + Math.max(0, panes.size - 5) * 1000, 15000);
+      enrichTimer = setInterval(enrichTabData, interval);
+    }
+    setTimeout(() => { scheduleEnrichTabData(); enrichTabData(); }, 2000);
 
     function updateWelcomeScreen() {
       const welcome = document.getElementById("welcome");
@@ -3944,6 +4008,22 @@
       showToast(`Imported ${commands.length} steps from "${result.name}.sh"`);
     });
 
+    // --- Export .sh ---
+    document.getElementById("pipeline-export-sh").addEventListener("click", async () => {
+      const order = plGetExecutionOrder();
+      if (!order || order.length === 0) { showToast("No steps to export"); return; }
+      const lines = ["#!/bin/bash", `# Pipeline: ${plName}`, "set -e", ""];
+      for (const id of order) {
+        const node = plNodes.find(n => n.id === id);
+        if (node) lines.push(node.command);
+      }
+      lines.push("");
+      const content = lines.join("\n");
+      const fileName = (plName || "pipeline").replace(/[^a-zA-Z0-9_-]/g, "_") + ".sh";
+      const saved = await window.terminator.exportSh(content, fileName);
+      if (saved) showToast(`Exported to ${saved}`);
+    });
+
     // --- Clear ---
     document.getElementById("pipeline-clear").addEventListener("click", () => {
       plNodes = []; plEdges = []; plSelectedId = null; plNextId = 1; plName = "Untitled";
@@ -4671,7 +4751,14 @@
         }
       }
     }
-    setInterval(refreshSmartNames, 4000);
+    // Scale interval with pane count: 4s base, +1s per pane above 5
+    let smartNameTimer = null;
+    function scheduleSmartNames() {
+      if (smartNameTimer) clearInterval(smartNameTimer);
+      const interval = Math.min(4000 + Math.max(0, panes.size - 5) * 1000, 15000);
+      smartNameTimer = setInterval(refreshSmartNames, interval);
+    }
+    scheduleSmartNames();
 
     // ============================================================
     // IDE MODE
@@ -5341,7 +5428,11 @@
     // ============================================================
     // RESIZE & CLEANUP
     // ============================================================
-    new ResizeObserver(() => fitAllTerminals()).observe(grid);
+    let resizeDebounce = null;
+    new ResizeObserver(() => {
+      clearTimeout(resizeDebounce);
+      resizeDebounce = setTimeout(() => fitAllTerminals(), 50);
+    }).observe(grid);
     window.addEventListener("beforeunload", () => {
       window.terminator.saveConfig({ theme: currentThemeIdx, fontSize: currentFontSize });
       saveCurrentSession(true);
@@ -6419,3 +6510,93 @@
     window.__setActive = (id) => { setActive(id); };
     window.__createPane = async (cwd) => { return await addTerminal(cwd); };
     window.__removeTerminal = (id) => { removeTerminal(id); };
+
+    // ============================================================
+    // AUTO-UPDATE NOTIFICATION UI
+    // ============================================================
+    const updateIndicator = document.getElementById("update-indicator");
+    const updateBanner = document.getElementById("update-banner");
+    const updateBannerText = document.getElementById("update-banner-text");
+    const updateBannerBtn = document.getElementById("update-banner-btn");
+    const updateBannerDismiss = document.getElementById("update-banner-dismiss");
+    let _updateVersion = null;
+    let _updateState = null; // "available" | "downloading" | "downloaded"
+
+    function showUpdateBanner(text, btnLabel, btnAction) {
+      updateBannerText.textContent = text;
+      updateBannerBtn.textContent = btnLabel;
+      updateBannerBtn.onclick = btnAction;
+      updateBanner.classList.add("visible");
+    }
+
+    function hideUpdateBanner() {
+      updateBanner.classList.remove("visible");
+    }
+
+    function updateIndicatorState(state, label) {
+      updateIndicator.className = "update-indicator visible " + state;
+      updateIndicator.textContent = label;
+    }
+
+    updateBannerDismiss.addEventListener("click", hideUpdateBanner);
+
+    updateIndicator.addEventListener("click", () => {
+      if (_updateState === "available") {
+        showUpdateBanner(
+          `v${_updateVersion} available`,
+          "Download",
+          () => { window.terminator.downloadUpdate(); }
+        );
+      } else if (_updateState === "downloaded") {
+        showUpdateBanner(
+          `v${_updateVersion} ready`,
+          "Restart to Update",
+          () => { window.terminator.installUpdate(); }
+        );
+      } else if (_updateState === "downloading") {
+        showToast("Downloading update...");
+      }
+    });
+
+    window.terminator.onUpdateStatus((data) => {
+      switch (data.status) {
+        case "available":
+          _updateVersion = data.version;
+          _updateState = "available";
+          updateIndicatorState("available", "\u2B06 v" + data.version);
+          showUpdateBanner(
+            `Update v${data.version} is available`,
+            "Download",
+            () => { window.terminator.downloadUpdate(); }
+          );
+          showToast(`Update available: v${data.version}`);
+          break;
+        case "downloading":
+          _updateState = "downloading";
+          updateIndicatorState("downloading", "\u2B07 " + (data.percent || 0) + "%");
+          updateBannerText.textContent = "Downloading... " + (data.percent || 0) + "%";
+          updateBannerBtn.textContent = "Downloading...";
+          updateBannerBtn.disabled = true;
+          break;
+        case "downloaded":
+          _updateVersion = data.version || _updateVersion;
+          _updateState = "downloaded";
+          updateIndicatorState("downloaded", "\u2714 v" + (_updateVersion || "new"));
+          showUpdateBanner(
+            `v${_updateVersion || "new"} downloaded`,
+            "Restart to Update",
+            () => { window.terminator.installUpdate(); }
+          );
+          updateBannerBtn.disabled = false;
+          showToast("Update downloaded — restart to apply");
+          break;
+        case "error":
+          hideUpdateBanner();
+          updateIndicator.className = "update-indicator";
+          _updateState = null;
+          break;
+        case "up-to-date":
+          // No UI needed — silently dismiss
+          break;
+      }
+    });

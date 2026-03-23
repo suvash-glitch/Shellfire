@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld("terminator", {
   cronRemove: (index) => ipcRenderer.invoke("cron-remove", index),
   findFiles: (query, dirs) => ipcRenderer.invoke("find-files", query, dirs),
   saveOutput: (content, name) => ipcRenderer.invoke("save-output", content, name),
+  exportSh: (content, name) => ipcRenderer.invoke("export-sh", content, name),
   // New features
   systemStats: () => ipcRenderer.invoke("system-stats"),
   saveSsh: (data) => ipcRenderer.send("save-ssh", data),
@@ -54,6 +55,8 @@ contextBridge.exposeInMainWorld("terminator", {
   getAppVersion: () => ipcRenderer.invoke("get-app-version"),
   getDefaultShell: () => ipcRenderer.invoke("get-default-shell"),
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+  downloadUpdate: () => ipcRenderer.invoke("download-update"),
+  installUpdate: () => ipcRenderer.invoke("install-update"),
   sshRemoteList: ({ host, user, port, password, remotePath }) =>
     ipcRenderer.invoke("ssh-remote-list", { host, user, port, password, remotePath }),
   sshRemoteOpenAll: ({ host, user, port, password, sessions }) =>
