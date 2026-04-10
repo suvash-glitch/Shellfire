@@ -239,32 +239,55 @@
           <!-- Appearance -->
           <div class="settings-tab active" data-tab="appearance">
             <div class="settings-tab-title">Appearance</div>
+            <div class="settings-tab-subtitle">Customize how Shellfire looks and feels.</div>
+
+            <div class="settings-group-label">Theme &amp; Colors</div>
             <div class="settings-group">
               <div class="settings-row" data-search="theme color scheme dark light solarized dracula monokai nord">
                 <div class="settings-row-label">
                   <label>Theme</label>
-                  <span class="settings-row-hint">Color scheme for the terminal and UI</span>
+                  <span class="settings-row-hint">Color scheme for the terminal and UI. Browse more in Extensions.</span>
                 </div>
                 <select id="setting-theme" class="settings-select"></select>
               </div>
-              <div class="settings-row" data-search="font size text">
+            </div>
+
+            <div class="settings-group-label">Zoom &amp; Size</div>
+            <div class="settings-group">
+              <div class="settings-row" data-search="zoom scale ui size app window">
                 <div class="settings-row-label">
-                  <label>Font Size</label>
-                  <span class="settings-row-hint">Terminal text size in pixels</span>
+                  <label>App Zoom</label>
+                  <span class="settings-row-hint">Scales the entire UI — titlebar, tabs, modals, and terminals. Persists across restarts. Cmd+= / Cmd+- / Cmd+0.</span>
+                </div>
+                <div class="settings-zoom-stepper">
+                  <button id="setting-zoom-out" title="Zoom out">−</button>
+                  <span class="settings-zoom-value" id="setting-zoom-value">100%</span>
+                  <button id="setting-zoom-in" title="Zoom in">+</button>
+                  <button id="setting-zoom-reset" title="Reset to 100%" style="font-size:11px;width:auto;padding:0 10px">⟲</button>
+                </div>
+              </div>
+              <div class="settings-row" data-search="font size text terminal">
+                <div class="settings-row-label">
+                  <label>Terminal Font Size</label>
+                  <span class="settings-row-hint">Text size inside terminals in pixels (independent of app zoom).</span>
                 </div>
                 <input type="number" id="setting-font-size" class="settings-input" min="8" max="24" value="13" />
               </div>
               <div class="settings-row" data-search="font family typeface monospace">
                 <div class="settings-row-label">
                   <label>Font Family</label>
-                  <span class="settings-row-hint">Monospace font for the terminal</span>
+                  <span class="settings-row-hint">Monospace font stack for terminal text.</span>
                 </div>
                 <input type="text" id="setting-font-family" class="settings-input-wide" value='"SF Mono", "Menlo", "Monaco", "Courier New", monospace' />
               </div>
+            </div>
+
+            <div class="settings-group-label">Cursor</div>
+            <div class="settings-group">
               <div class="settings-row" data-search="cursor style block underline bar">
                 <div class="settings-row-label">
                   <label>Cursor Style</label>
-                  <span class="settings-row-hint">Shape of the terminal cursor</span>
+                  <span class="settings-row-hint">Shape of the terminal cursor.</span>
                 </div>
                 <select id="setting-cursor-style" class="settings-select">
                   <option value="block">Block</option>
@@ -275,7 +298,7 @@
               <div class="settings-row" data-search="cursor blink animation">
                 <div class="settings-row-label">
                   <label>Cursor Blink</label>
-                  <span class="settings-row-hint">Animate the cursor</span>
+                  <span class="settings-row-hint">Animate the cursor with a steady blink.</span>
                 </div>
                 <input type="checkbox" id="setting-cursor-blink" checked />
               </div>
@@ -285,32 +308,39 @@
           <!-- Terminal -->
           <div class="settings-tab" data-tab="terminal">
             <div class="settings-tab-title">Terminal</div>
+            <div class="settings-tab-subtitle">Shell, working directory, and buffer configuration.</div>
+
+            <div class="settings-group-label">Shell</div>
             <div class="settings-group">
               <div class="settings-row" data-search="shell zsh bash fish default">
                 <div class="settings-row-label">
                   <label>Default Shell</label>
-                  <span class="settings-row-hint">Leave empty to auto-detect from system</span>
+                  <span class="settings-row-hint">Leave empty to auto-detect from $SHELL environment variable.</span>
                 </div>
                 <input type="text" id="setting-shell" class="settings-input-wide" placeholder="Auto-detect" />
               </div>
               <div class="settings-row" data-search="directory cwd working path home">
                 <div class="settings-row-label">
                   <label>Default Directory</label>
-                  <span class="settings-row-hint">Starting directory for new terminals</span>
+                  <span class="settings-row-hint">Starting directory for new terminals. Leave empty for home directory.</span>
                 </div>
-                <input type="text" id="setting-cwd" class="settings-input-wide" placeholder="Home directory" />
+                <input type="text" id="setting-cwd" class="settings-input-wide" placeholder="~" />
               </div>
+            </div>
+
+            <div class="settings-group-label">Buffer &amp; History</div>
+            <div class="settings-group">
               <div class="settings-row" data-search="scrollback lines buffer history">
                 <div class="settings-row-label">
                   <label>Scrollback Lines</label>
-                  <span class="settings-row-hint">Number of lines kept in scroll history</span>
+                  <span class="settings-row-hint">Number of lines xterm keeps in scroll history per pane.</span>
                 </div>
                 <input type="number" id="setting-scrollback" class="settings-input" min="1000" max="100000" value="10000" step="1000" />
               </div>
-              <div class="settings-row" data-search="buffer limit memory size">
+              <div class="settings-row" data-search="buffer limit memory size persistence">
                 <div class="settings-row-label">
-                  <label>Buffer Limit (KB)</label>
-                  <span class="settings-row-hint">Maximum buffer size per terminal</span>
+                  <label>Persistence Buffer (KB)</label>
+                  <span class="settings-row-hint">Rolling buffer size per PTY for tmux-style reattach. Larger = more history preserved.</span>
                 </div>
                 <input type="number" id="setting-buffer-limit" class="settings-input" min="64" max="2048" value="512" step="64" />
               </div>
@@ -320,46 +350,61 @@
           <!-- Behavior -->
           <div class="settings-tab" data-tab="behavior">
             <div class="settings-tab-title">Behavior</div>
+            <div class="settings-tab-subtitle">How Shellfire responds to your actions.</div>
+
+            <div class="settings-info-card">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <div class="settings-info-card-body">
+                <strong>tmux-style persistence is always on</strong>
+                Closing the Shellfire window keeps all PTYs alive. Processes like Claude, vim, and long-running commands survive close and reattach when you reopen. Only Cmd+Q fully terminates sessions.
+              </div>
+            </div>
+
+            <div class="settings-group-label">Interaction</div>
             <div class="settings-group">
               <div class="settings-row" data-search="copy select clipboard">
                 <div class="settings-row-label">
                   <label>Copy on Select</label>
-                  <span class="settings-row-hint">Automatically copy selected text to clipboard</span>
+                  <span class="settings-row-hint">Automatically copy selected text to the clipboard.</span>
                 </div>
                 <input type="checkbox" id="setting-copy-on-select" checked />
-              </div>
-              <div class="settings-row" data-search="ai suggestions error detect">
-                <div class="settings-row-label">
-                  <label>AI Suggestions</label>
-                  <span class="settings-row-hint">Show AI help popup when errors are detected in terminal output</span>
-                </div>
-                <input type="checkbox" id="setting-ai-suggestions" checked />
               </div>
               <div class="settings-row" data-search="confirm close exit quit">
                 <div class="settings-row-label">
                   <label>Confirm Close</label>
-                  <span class="settings-row-hint">Ask before closing a terminal with running processes</span>
+                  <span class="settings-row-hint">Ask for confirmation before closing a pane with a running process.</span>
                 </div>
                 <input type="checkbox" id="setting-confirm-close" checked />
               </div>
+              <div class="settings-row" data-search="ai suggestions error detect">
+                <div class="settings-row-label">
+                  <label>AI Error Suggestions</label>
+                  <span class="settings-row-hint">Show AI help popup when errors are detected in terminal output.</span>
+                </div>
+                <input type="checkbox" id="setting-ai-suggestions" checked />
+              </div>
+            </div>
+
+            <div class="settings-group-label">Session &amp; Layout</div>
+            <div class="settings-group">
               <div class="settings-row" data-search="auto save session restore">
                 <div class="settings-row-label">
-                  <label>Auto-save Session</label>
-                  <span class="settings-row-hint">Periodically save workspace layout and state</span>
+                  <label>Auto-save Session Metadata</label>
+                  <span class="settings-row-hint">Periodically save layout, pane names, and colors for cold starts.</span>
                 </div>
                 <input type="checkbox" id="setting-auto-save" checked />
               </div>
               <div class="settings-row" data-search="auto save interval timer seconds">
                 <div class="settings-row-label">
                   <label>Auto-save Interval</label>
-                  <span class="settings-row-hint">Time between auto-saves in seconds</span>
+                  <span class="settings-row-hint">Seconds between metadata auto-saves.</span>
                 </div>
                 <input type="number" id="setting-auto-save-interval" class="settings-input" min="10" max="600" value="60" step="10" />
               </div>
               <div class="settings-row" data-search="ide mode sidebar project">
                 <div class="settings-row-label">
                   <label>IDE Mode</label>
-                  <span class="settings-row-hint">Show project sidebar like an IDE</span>
+                  <span class="settings-row-hint">Show a project-grouped sidebar with editor-style tabs.</span>
                 </div>
                 <input type="checkbox" id="setting-ide-mode" />
               </div>

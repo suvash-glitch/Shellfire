@@ -92,6 +92,8 @@ contextBridge.exposeInMainWorld("shellfire", {
   winMinimize: () => ipcRenderer.send("win-minimize"),
   winMaximize: () => ipcRenderer.send("win-maximize"),
   winClose: () => ipcRenderer.send("win-close"),
+  setZoom: (factor) => ipcRenderer.invoke("set-zoom", factor),
+  getZoom: () => ipcRenderer.invoke("get-zoom"),
   platform: process.platform,
   // Secrets manager
   loadSecrets: () => ipcRenderer.invoke("load-secrets"),

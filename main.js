@@ -1701,6 +1701,18 @@ ipcMain.on("win-minimize", () => { if (mainWindow) mainWindow.minimize(); });
 ipcMain.on("win-maximize", () => { if (mainWindow) { mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize(); } });
 ipcMain.on("win-close", () => { if (mainWindow) mainWindow.close(); });
 
+// App-wide zoom — scales the entire UI chrome + terminal proportionally
+ipcMain.handle("set-zoom", (_, factor) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const f = Number(factor);
+  if (!isFinite(f) || f < 0.5 || f > 3) return;
+  mainWindow.webContents.setZoomFactor(f);
+});
+ipcMain.handle("get-zoom", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return 1;
+  return mainWindow.webContents.getZoomFactor();
+});
+
 // ============================================================
 // PLUGIN SYSTEM
 // ============================================================

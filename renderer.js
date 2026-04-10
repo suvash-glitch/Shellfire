@@ -13,6 +13,7 @@
     let zoomedId = null;
     let currentThemeIdx = 0;
     let currentFontSize = 13;
+    let currentZoom = 1.0; // app-wide zoom factor (0.5 – 3.0)
     let copyOnSelect = true;
     let snippets = []; // { name, command }
     let profiles = []; // { name, panes: [{ cwd, command }] }
@@ -223,14 +224,43 @@
     function cycleTheme() { applyTheme((currentThemeIdx + 1) % themes.length); }
 
     // ============================================================
-    // FONT SIZE
+    // ZOOM (app-wide — scales entire UI chrome + terminal)
+    // ============================================================
+    function applyZoom(factor, silent) {
+      currentZoom = Math.max(0.5, Math.min(3.0, Number(factor) || 1.0));
+      // Round to nearest 0.05 for clean steps
+      currentZoom = Math.round(currentZoom * 20) / 20;
+      window.shellfire.setZoom(currentZoom);
+      // Persist to both config and settings so it survives restart
+      window.shellfire.saveConfig({
+        theme: currentThemeIdx,
+        themeName: (themes[currentThemeIdx] || themes[0]).name,
+        fontSize: currentFontSize,
+        zoom: currentZoom,
+      });
+      settings.zoom = currentZoom;
+      if (!silent) showToast(`Zoom: ${Math.round(currentZoom * 100)}%`);
+      // Terminals need to refit after the window scales
+      setTimeout(() => fitAllTerminals(), 50);
+    }
+    function zoomIn() { applyZoom(currentZoom + 0.1); }
+    function zoomOut() { applyZoom(currentZoom - 0.1); }
+    function zoomReset() { applyZoom(1.0); }
+
+    // ============================================================
+    // FONT SIZE (terminal-only — independent of app zoom)
     // ============================================================
     function setFontSize(size) {
       currentFontSize = Math.max(8, Math.min(24, size));
       for (const [, pane] of panes) pane.term.options.fontSize = currentFontSize;
       fitAllTerminals();
       showToast(`Font size: ${currentFontSize}px`);
-      window.shellfire.saveConfig({ theme: currentThemeIdx, fontSize: currentFontSize });
+      window.shellfire.saveConfig({
+        theme: currentThemeIdx,
+        themeName: (themes[currentThemeIdx] || themes[0]).name,
+        fontSize: currentFontSize,
+        zoom: currentZoom,
+      });
     }
 
     // ============================================================
@@ -2433,9 +2463,9 @@
       else if (meta && e.shiftKey && e.key === "Enter") { e.preventDefault(); toggleZoom(); }
       else if (meta && e.shiftKey && (e.key === "B" || e.key === "b")) { e.preventDefault(); toggleBroadcast(); }
       else if (meta && e.shiftKey && (e.key === "R" || e.key === "r")) { e.preventDefault(); openSnippetRunner(); }
-      else if (meta && (e.key === "=" || e.key === "+")) { e.preventDefault(); setFontSize(currentFontSize + 1); }
-      else if (meta && e.key === "-") { e.preventDefault(); setFontSize(currentFontSize - 1); }
-      else if (meta && e.key === "0") { e.preventDefault(); setFontSize(13); }
+      else if (meta && (e.key === "=" || e.key === "+")) { e.preventDefault(); zoomIn(); }
+      else if (meta && e.key === "-") { e.preventDefault(); zoomOut(); }
+      else if (meta && e.key === "0") { e.preventDefault(); zoomReset(); }
       else if (meta && e.key === "ArrowRight") { e.preventDefault(); navigatePane(1); }
       else if (meta && e.key === "ArrowLeft") { e.preventDefault(); navigatePane(-1); }
       else if (meta && e.key === "ArrowDown") { e.preventDefault(); navigatePaneVertical(1); }
@@ -5348,6 +5378,7 @@
       });
 
       // Populate current values
+      document.getElementById("setting-zoom-value").textContent = Math.round(currentZoom * 100) + "%";
       document.getElementById("setting-font-size").value = currentFontSize;
       document.getElementById("setting-font-family").value = settings.fontFamily || '"SF Mono", "Menlo", "Monaco", "Courier New", monospace';
       document.getElementById("setting-cursor-style").value = settings.cursorStyle || "block";
@@ -5576,6 +5607,15 @@
     document.getElementById("setting-shell").addEventListener("blur", applySettings);
     document.getElementById("setting-cwd").addEventListener("blur", applySettings);
 
+    // Zoom stepper
+    function updateZoomValueDisplay() {
+      const el = document.getElementById("setting-zoom-value");
+      if (el) el.textContent = Math.round(currentZoom * 100) + "%";
+    }
+    document.getElementById("setting-zoom-in").addEventListener("click", () => { zoomIn(); updateZoomValueDisplay(); });
+    document.getElementById("setting-zoom-out").addEventListener("click", () => { zoomOut(); updateZoomValueDisplay(); });
+    document.getElementById("setting-zoom-reset").addEventListener("click", () => { zoomReset(); updateZoomValueDisplay(); });
+
     // ============================================================
     // KEYBINDING EDITOR
     // ============================================================
@@ -5681,8 +5721,12 @@
       resizeDebounce = setTimeout(() => fitAllTerminals(), 100);
     }).observe(grid);
     window.addEventListener("beforeunload", () => {
-      window.shellfire.saveConfig({ theme: currentThemeIdx, fontSize: currentFontSize, themeName: (themes[currentThemeIdx] || themes[0]).name });
-      // Use sync save — beforeunload doesn't wait for async, so IPC calls would never complete
+      window.shellfire.saveConfig({
+        theme: currentThemeIdx,
+        themeName: (themes[currentThemeIdx] || themes[0]).name,
+        fontSize: currentFontSize,
+        zoom: currentZoom,
+      });
       saveCurrentSessionSync();
     });
     setupAutoSave();
@@ -6648,14 +6692,21 @@
           if (config.theme >= 0 && config.theme < themes.length) currentThemeIdx = config.theme;
           if (config.fontSize) currentFontSize = config.fontSize;
           if (config.themeName) _savedThemeName = config.themeName;
+          if (typeof config.zoom === "number" && config.zoom >= 0.5 && config.zoom <= 3) currentZoom = config.zoom;
         }
         // Settings override config
         if (settings.theme >= 0 && settings.theme < themes.length) currentThemeIdx = settings.theme;
         if (settings.themeName) _savedThemeName = settings.themeName;
         if (settings.fontSize) currentFontSize = settings.fontSize;
+        if (typeof settings.zoom === "number" && settings.zoom >= 0.5 && settings.zoom <= 3) currentZoom = settings.zoom;
         // Session override (most recent state)
         if (savedSession && savedSession.themeName) _savedThemeName = savedSession.themeName;
         if (savedSession && savedSession.theme >= 0 && savedSession.theme < themes.length) currentThemeIdx = savedSession.theme;
+
+        // Apply persisted zoom IMMEDIATELY before any rendering so the UI opens at the right size
+        if (currentZoom !== 1.0) {
+          try { await window.shellfire.setZoom(currentZoom); } catch {}
+        }
         if (Array.isArray(savedSnippets)) snippets = savedSnippets;
         if (Array.isArray(savedProfiles)) profiles = savedProfiles;
 
