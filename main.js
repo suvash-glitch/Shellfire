@@ -24,17 +24,38 @@ let mainWindow;
 const ptys = new Map();
 let nextId = 1;
 
+// Per-PTY output buffer for tmux-like reattach: when the window closes, PTYs
+// stay alive and we keep accumulating their output here. On next window open,
+// the renderer pulls this buffer and writes it to a fresh xterm, producing an
+// exact visual replay (including alt-screen apps like Claude Code, vim, etc.)
+// because the bytes are the same ones the PTY originally emitted.
+const PTY_BUFFER_MAX = 1024 * 1024; // 1MB tail per pty
+const ptyBuffers = new Map(); // id -> string
+const ptyMeta = new Map();    // id -> { cwd, cols, rows }
+
+function appendPtyBuffer(id, data) {
+  const cur = ptyBuffers.get(id) || "";
+  const next = cur + data;
+  ptyBuffers.set(id, next.length > PTY_BUFFER_MAX ? next.slice(-PTY_BUFFER_MAX) : next);
+}
+
 // ============================================================
 // INPUT VALIDATION HELPERS
 // ============================================================
 function sanitizePath(p) {
   if (typeof p !== "string") return null;
   if (p.includes("\0")) return null;
-  const resolved = path.resolve(p);
-  // Block traversal outside home directory or /tmp
+  // Expand ~ to home directory (shell-style tilde expansion)
   const home = os.homedir();
+  let expanded = p;
+  if (expanded === "~") expanded = home;
+  else if (expanded.startsWith("~/")) expanded = path.join(home, expanded.slice(2));
+  const resolved = path.resolve(expanded);
+  // Block traversal outside home directory or /tmp
   const tmp = os.tmpdir();
   if (!resolved.startsWith(home) && !resolved.startsWith(tmp) && !resolved.startsWith("/tmp")) return null;
+  // Verify directory exists
+  try { if (!fs.statSync(resolved).isDirectory()) return null; } catch { return null; }
   return resolved;
 }
 
@@ -66,7 +87,15 @@ function readJSON(p, fallback) {
   }
 }
 function writeJSON(p, data) {
-  fs.writeFileSync(p, JSON.stringify(data, null, 2));
+  // Atomic write: write to temp file then rename to prevent corruption on crash
+  const tmp = p + ".tmp";
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, p);
+  } catch (err) {
+    log('error', `Failed to write ${path.basename(p)}:`, err.message);
+    try { fs.unlinkSync(tmp); } catch {}
+  }
 }
 
 // ============================================================
@@ -105,8 +134,8 @@ function createWindow() {
   mainWindow.maximize();
 
   mainWindow.on("closed", () => {
-    for (const [, p] of ptys) p.kill();
-    ptys.clear();
+    // Keep PTYs alive — they will be reattached when a new window opens.
+    // Only full app quit (before-quit) actually kills them.
     mainWindow = null;
   });
 }
@@ -488,10 +517,32 @@ function cleanupSocket() {
   try { fs.unlinkSync(SOCKET_PATH); } catch {}
 }
 
+// Clean up PTYs only on full app quit (not window close)
+app.on("before-quit", () => {
+  for (const [, p] of ptys) {
+    try { p.kill(); } catch {}
+  }
+  ptys.clear();
+  ptyBuffers.clear();
+  ptyMeta.clear();
+});
 app.on("will-quit", cleanupSocket);
+
+// Window-all-closed: on macOS, keep the app running so PTYs stay alive and
+// the user can reopen the window with the same sessions attached. On other
+// platforms, closing the last window quits (and will-quit kills PTYs).
 app.on("window-all-closed", () => {
-  cleanupSocket();
-  app.quit();
+  if (process.platform !== "darwin") {
+    cleanupSocket();
+    app.quit();
+  }
+});
+
+// Recreate window when the app is re-activated (dock icon click on macOS)
+app.on("activate", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow();
+  }
 });
 
 // Update status IPC
@@ -532,8 +583,12 @@ ipcMain.handle("create-terminal", (_, cwd, restoreCmd) => {
   });
 
   ptys.set(id, p);
+  ptyBuffers.set(id, "");
+  ptyMeta.set(id, { cwd: safeCwd || os.homedir(), cols: 80, rows: 24 });
 
   p.onData((data) => {
+    // Always buffer — so reattach after window close still works
+    appendPtyBuffer(id, data);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("terminal-data", id, data);
     }
@@ -541,6 +596,8 @@ ipcMain.handle("create-terminal", (_, cwd, restoreCmd) => {
 
   p.onExit(({ exitCode }) => {
     ptys.delete(id);
+    ptyBuffers.delete(id);
+    ptyMeta.delete(id);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("terminal-exit", id, exitCode);
     }
@@ -548,10 +605,11 @@ ipcMain.handle("create-terminal", (_, cwd, restoreCmd) => {
 
   // Re-launch a saved command after shell initializes (session restore)
   if (restoreCmd && typeof restoreCmd === "string") {
+    // Wait for shell to fully initialize (.zshrc, plugins, PATH, etc.)
     setTimeout(() => {
       const p2 = ptys.get(id);
       if (p2) p2.write(restoreCmd + "\n");
-    }, 500);
+    }, 1500);
   }
 
   return id;
@@ -568,7 +626,33 @@ ipcMain.on("terminal-resize", (_, id, cols, rows) => {
   const c = Number(cols), r = Number(rows);
   if (!Number.isInteger(c) || !Number.isInteger(r) || c < 1 || r < 1 || c > 500 || r > 500) return;
   const p = ptys.get(id);
-  if (p) p.resize(c, r);
+  if (p) {
+    p.resize(c, r);
+    const meta = ptyMeta.get(id);
+    if (meta) { meta.cols = c; meta.rows = r; }
+  }
+});
+
+// List existing PTYs for reattach (tmux-like session persistence).
+// Returns all currently-alive PTYs with their accumulated output buffer and metadata.
+ipcMain.handle("list-ptys", async () => {
+  const result = [];
+  for (const [id, p] of ptys) {
+    let cwd = ptyMeta.get(id)?.cwd || null;
+    try {
+      const fresh = await getCwdForPty(id);
+      if (fresh) cwd = fresh;
+    } catch {}
+    result.push({
+      id,
+      pid: p.pid,
+      buffer: ptyBuffers.get(id) || "",
+      cwd,
+      cols: ptyMeta.get(id)?.cols || 80,
+      rows: ptyMeta.get(id)?.rows || 24,
+    });
+  }
+  return result;
 });
 
 ipcMain.on("terminal-kill", (_, id) => {
@@ -710,8 +794,13 @@ ipcMain.on("open-in-editor", (_, filePath) => {
 ipcMain.on("save-session", (_, data) => {
   try {
     const json = JSON.stringify(data);
-    fs.writeFile(SESSION_PATH, json, (err) => {
-      if (err) log('error', "Session save error:", err);
+    // Atomic write: temp file + rename to prevent corruption
+    const tmp = SESSION_PATH + ".tmp";
+    fs.writeFile(tmp, json, (err) => {
+      if (err) { log('error', "Session save error:", err); return; }
+      fs.rename(tmp, SESSION_PATH, (renameErr) => {
+        if (renameErr) log('error', "Session rename error:", renameErr);
+      });
     });
   } catch (e) { log('error', "Session serialize error:", e); }
 });
@@ -1023,13 +1112,25 @@ ipcMain.handle("get-process-tree", async (_, id) => {
     const childPidsStr = await execFileAsync("pgrep", ["-P", pid]);
     const childPids = childPidsStr.split("\n").filter(Boolean);
     if (childPids.length === 0) return null;
-    const result = await execFileAsync("ps", ["-o", "pid=,comm=,args=", "-p", childPids.join(",")]);
+    // Get process info — use separate fields to avoid whitespace parsing issues
+    const result = await execFileAsync("ps", ["-o", "pid=,comm=", "-p", childPids.join(",")]);
+    const argsResult = await execFileAsync("ps", ["-o", "args=", "-p", childPids[childPids.length - 1]]);
     if (!result) return null;
     const lines = result.split("\n").map(l => l.trim()).filter(Boolean);
     if (lines.length === 0) return null;
     const last = lines[lines.length - 1];
     const parts = last.trim().split(/\s+/);
-    return { pid: parts[0], comm: parts[1], args: parts.slice(2).join(" ") };
+    const fullArgs = (argsResult || "").trim();
+    // Extract a clean, re-executable command from the full args
+    // e.g. "/usr/local/bin/node /path/to/claude --flag" → "claude --flag"
+    let cleanCmd = fullArgs;
+    const comm = (parts[1] || "").split("/").pop();
+    // For node-based CLIs (claude, npm, npx, etc.), find the CLI name in args
+    if (comm === "node" || comm === "node.exe") {
+      const match = fullArgs.match(/\/([^/\s]+?)(?:\.js)?\s*(.*)/);
+      if (match) cleanCmd = match[1] + (match[2] ? " " + match[2] : "");
+    }
+    return { pid: parts[0], comm: parts[1], args: cleanCmd };
   } catch { return null; }
 });
 

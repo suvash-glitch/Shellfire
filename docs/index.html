@@ -7,7 +7,7 @@
 <meta name="description" content="Split, organize, and supercharge your terminal workflow with Claude intelligence built in. AI autocomplete, multiplexing, IDE mode, and more.">
 <meta name="theme-color" content="#1a1a2e">
 <meta property="og:title" content="Shellfire — AI-Powered Terminal Multiplexer">
-<meta property="og:description" content="The terminal multiplexer with AI built in. Split panes, Claude autocomplete, SSH manager, Docker integration, and 50+ keyboard shortcuts.">
+<meta property="og:description" content="The terminal multiplexer that replaces everything. AI-powered splits, IDE mode, 100+ plugins, pipelines, Docker, SSH, secrets vault — one app.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="screenshot.png">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
@@ -462,6 +462,7 @@ footer{
     </button>
     <div class="links">
       <a href="#features">Features</a>
+      <a href="#v2">v2</a>
       <a href="marketplace.html">Marketplace</a>
       <a href="builder/">Builder</a>
       <a href="#shortcuts">Shortcuts</a>
@@ -476,13 +477,13 @@ footer{
   <div class="hero-content">
     <div class="hero-badge">
       <span class="dot"></span>
-      v1.2 — Now with AI autocomplete &amp; plugin system
+      v2.0 — tmux-style persistence, 100+ plugins, zero-flicker themes
     </div>
     <h1 class="hero-title">
-      Your terminal,<br><span class="gradient">supercharged.</span>
+      Close the window.<br><span class="gradient">Your session stays alive.</span>
     </h1>
     <p class="hero-tagline">
-      Split panes, <strong>Claude AI</strong> autocomplete, SSH manager, Docker dashboard, and 50+ keyboard shortcuts — all in one app.
+      True <strong>tmux-style persistence</strong> — close Shellfire, reopen it, and Claude, vim, and every running process are exactly where you left them. Plus AI splits, IDE mode, 100+ plugins, and 70+ shortcuts.
     </p>
     <div class="hero-buttons">
       <a href="https://github.com/suvash-glitch/Shellfire/releases" class="btn btn-primary">
@@ -536,20 +537,24 @@ footer{
   <div class="container">
     <div class="stats-grid fade-in">
       <div class="stat">
-        <div class="stat-number" data-count="50">50+</div>
+        <div class="stat-number" data-count="100">100+</div>
+        <div class="stat-label">Marketplace plugins</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" data-count="70">70+</div>
         <div class="stat-label">Keyboard shortcuts</div>
       </div>
       <div class="stat">
-        <div class="stat-number" data-count="6">6</div>
-        <div class="stat-label">Built-in themes</div>
-      </div>
-      <div class="stat">
-        <div class="stat-number" data-count="3">3</div>
-        <div class="stat-label">Platforms</div>
+        <div class="stat-number" data-count="36">36+</div>
+        <div class="stat-label">Themes available</div>
       </div>
       <div class="stat">
         <div class="stat-number" data-count="133">133</div>
         <div class="stat-label">Tests passing</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" data-count="3">3</div>
+        <div class="stat-label">Platforms</div>
       </div>
     </div>
   </div>
@@ -560,8 +565,8 @@ footer{
   <div class="container">
     <div class="fade-in">
       <p class="section-label">Features</p>
-      <h2 class="section-title">Everything you need in one terminal</h2>
-      <p class="section-desc">Shellfire replaces your terminal, tmux, and half your DevOps dashboard. Built for developers who demand more.</p>
+      <h2 class="section-title">Your terminal, tmux, and DevOps dashboard — combined</h2>
+      <p class="section-desc">Shellfire replaces 6 apps: terminal emulator, tmux, SSH client, Docker dashboard, secrets manager, and notes app. All in one.</p>
     </div>
     <div class="feature-grid">
 
@@ -609,8 +614,8 @@ footer{
         <div class="feature-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>
         </div>
-        <h3>Session Save &amp; Restore</h3>
-        <p>Save your entire workspace — layout, directories, scroll history — and auto-restore on next launch.</p>
+        <h3>tmux-Style Persistence</h3>
+        <p>Close the window, processes keep running. Reopen to reattach to live PTYs with Claude, vim, and everything exactly where you left them.</p>
       </div>
 
       <div class="feature-card fade-in">
@@ -641,8 +646,8 @@ footer{
         <div class="feature-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         </div>
-        <h3>6 Themes + Plugins</h3>
-        <p>Dark, Solarized, Dracula, Monokai, Nord, Light. Extend with community plugins for custom themes, commands, and status bars.</p>
+        <h3>36+ Themes &amp; 100+ Plugins</h3>
+        <p>6 built-in + 30 plugin themes. Browse the marketplace for commands, widgets, and extensions. Or build your own in minutes.</p>
       </div>
 
       <div class="feature-card fade-in">
@@ -677,11 +682,11 @@ footer{
       <div class="compare-card fade-in">
         <h3>Traditional Terminals</h3>
         <ul class="compare-list">
+          <li><span class="cross">&times;</span> Closing the window kills all processes</li>
           <li><span class="cross">&times;</span> Separate tmux/screen config to learn</li>
           <li><span class="cross">&times;</span> No AI assistance</li>
           <li><span class="cross">&times;</span> Manual SSH connection management</li>
           <li><span class="cross">&times;</span> No built-in port/Docker visibility</li>
-          <li><span class="cross">&times;</span> Session restore requires plugins</li>
           <li><span class="cross">&times;</span> Theme changes need config editing</li>
           <li><span class="cross">&times;</span> No command palette</li>
         </ul>
@@ -689,14 +694,76 @@ footer{
       <div class="compare-card highlight fade-in">
         <h3>Shellfire <span class="tag">All-in-one</span></h3>
         <ul class="compare-list">
+          <li><span class="check">&check;</span> PTYs survive window close — reattach like tmux</li>
           <li><span class="check">&check;</span> Built-in splits, tabs, and grid layout</li>
-          <li><span class="check">&check;</span> Claude AI autocomplete + chat sidebar</li>
+          <li><span class="check">&check;</span> Claude AI built into every pane</li>
           <li><span class="check">&check;</span> SSH bookmarks + remote session discovery</li>
           <li><span class="check">&check;</span> Port manager + Docker dashboard built in</li>
-          <li><span class="check">&check;</span> One-click session save &amp; auto-restore</li>
           <li><span class="check">&check;</span> Cycle themes with a keyboard shortcut</li>
           <li><span class="check">&check;</span> Cmd+P for everything, instantly</li>
         </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== WHAT'S NEW IN V2 ======== -->
+<section id="v2" style="background:var(--bg-deep)">
+  <div class="container">
+    <div class="fade-in">
+      <p class="section-label">What's new in v2</p>
+      <h2 class="section-title">Rebuilt from the inside out</h2>
+      <p class="section-desc">v2 isn't a feature update — it's a stability and architecture overhaul. Every major system was rewritten.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card fade-in" style="grid-column:span 3;border-color:rgba(255,140,0,0.3);background:linear-gradient(135deg,rgba(255,140,0,0.04),rgba(255,140,0,0.01))">
+        <div class="feature-icon" style="background:rgba(255,140,0,0.12)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h3 style="font-size:1.2rem">True tmux-Style Persistence <span style="font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:rgba(255,140,0,0.15);color:var(--accent);margin-left:8px;vertical-align:middle">New</span></h3>
+        <p style="font-size:.95rem">PTY processes survive window close. Launch Claude, vim, or any long-running process, close the Shellfire window, and reopen it later — your session is exactly where you left it. Claude's conversation, vim's buffer, your shell history, scroll position, working directory — all preserved. The Electron app stays alive in the dock; processes keep running in the background; reopening reattaches to the live PTYs. This is not a replay of saved output — it's true process persistence, the same model tmux uses.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(0,230,118,0.08)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
+        </div>
+        <h3>Zero-Flicker Themes</h3>
+        <p>Themes now work entirely through CSS custom properties. No more inline styles that break on DOM rebuild. Themes survive reloads, splits, and plugin loads.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(0,230,118,0.08)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        </div>
+        <h3>Clean Session Restore</h3>
+        <p>No more gibberish on reopen. Raw ANSI sequences are stripped and clean text history is shown with clear session separators. Fresh PTY, clean context.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(0,230,118,0.08)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Atomic Saves</h3>
+        <p>All config and session files now use write-to-temp + atomic rename. If Shellfire crashes mid-save, your data is never corrupted.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(0,230,118,0.08)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+        </div>
+        <h3>Scroll Stability</h3>
+        <p>Fixed the scroll-to-top bug. Scroll state is captured before every DOM operation and restored after fitting, with layout guards that prevent interference.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(0,230,118,0.08)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <h3>Hardened Plugins</h3>
+        <p>Broken plugins can't crash the app. Error isolation, auto-disable for failing widgets, clean unload on reload, and visibility-aware rendering.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon" style="background:rgba(0,230,118,0.08)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+        </div>
+        <h3>XSS-Safe Rendering</h3>
+        <p>All user-supplied content is HTML-escaped before DOM insertion. Prevents injection through crafted terminal titles, branch names, or pane names.</p>
       </div>
     </div>
   </div>
@@ -791,8 +858,8 @@ footer{
 <section id="cta">
   <div class="container">
     <div class="cta-content fade-in">
-      <h2 class="cta-title">Ready to upgrade your terminal?</h2>
-      <p class="cta-desc">Join developers who've switched to a smarter, faster terminal workflow.</p>
+      <h2 class="cta-title">Ready to replace your terminal stack?</h2>
+      <p class="cta-desc">v2 is here. Zero-flicker themes, clean session restore, 100+ plugins, and rock-solid stability.</p>
       <div class="hero-buttons">
         <a href="https://github.com/suvash-glitch/Shellfire/releases" class="btn btn-primary">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -817,7 +884,7 @@ footer{
         <a href="https://github.com/suvash-glitch/Shellfire/blob/main/CONTRIBUTING.md">Contributing</a>
         <a href="https://github.com/suvash-glitch/Shellfire/blob/main/LICENSE">MIT License</a>
       </div>
-      <p class="footer-tech">Built with Electron, xterm.js, node-pty, and Claude AI</p>
+      <p class="footer-tech">Built with Electron v35, xterm.js, node-pty, and Claude AI &middot; 100+ plugins</p>
       <p>&copy; 2026 Suvash Bhusal</p>
     </div>
   </div>

@@ -160,6 +160,9 @@
     // ============================================================
     // UTILS
     // ============================================================
+    const _escMap = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
+    function escHtml(str) { return String(str).replace(/[&<>"']/g, c => _escMap[c]); }
+
     let toastTimer = null;
     function showToast(msg, type) {
       toastEl.textContent = msg;
@@ -185,7 +188,7 @@
     // ============================================================
     // THEME
     // ============================================================
-    function applyTheme(idx) {
+    function applyTheme(idx, silent) {
       if (typeof idx === "string") {
         const found = themes.findIndex(t => t.name === idx);
         idx = found >= 0 ? found : 0;
@@ -193,7 +196,7 @@
       if (idx < 0 || idx >= themes.length) idx = 0;
       currentThemeIdx = idx;
       const t = themes[idx];
-      // Set CSS custom properties
+      // Set CSS custom properties — all styling flows from these, no inline overrides needed
       const root = document.documentElement;
       root.style.setProperty("--t-bg", t.body);
       root.style.setProperty("--t-fg", t.term.foreground || "#cccccc");
@@ -201,29 +204,7 @@
       root.style.setProperty("--t-border", t.border);
       root.style.setProperty("--t-accent", t.term.cursor || "#00f0ff");
 
-      // Apply inline styles for elements that need explicit updates
-      document.body.style.background = t.body;
-      document.body.style.color = t.term.foreground || "#cccccc";
-      document.querySelectorAll(".titlebar, .bottombar").forEach(el => {
-        el.style.background = t.ui;
-        el.style.borderColor = t.border;
-      });
-      document.querySelectorAll(".pane-header").forEach(el => {
-        el.style.background = t.border;
-        el.style.borderColor = t.border;
-      });
-      document.querySelectorAll(".pane.active .pane-header").forEach(el => {
-        el.style.background = t.ui;
-      });
-      document.querySelectorAll(".pane").forEach(el => { el.style.background = t.body; });
-      const tabbar = document.getElementById("tabbar");
-      if (tabbar) { tabbar.style.background = t.ui; tabbar.style.borderColor = t.border; }
-      document.querySelectorAll(".tab.active").forEach(el => { el.style.background = t.body; });
-      document.querySelectorAll(".side-panel").forEach(el => {
-        el.style.background = t.ui; el.style.borderColor = t.border;
-      });
-      document.querySelectorAll(".resize-handle-h, .resize-handle-v").forEach(el => { el.style.background = t.border; });
-      // Terminal themes (preserve per-pane color overrides)
+      // Update xterm themes (preserve per-pane color overrides)
       for (const [, pane] of panes) {
         if (pane.termBg && pane.termFg) {
           pane.term.options.theme = { ...t.term, background: pane.termBg, foreground: pane.termFg };
@@ -233,9 +214,8 @@
           pane.el.querySelector(".pane-body").style.background = "";
         }
       }
-      showToast(`Theme: ${t.name}`);
+      if (!silent) showToast(`Theme: ${t.name}`);
       window.shellfire.saveConfig({ theme: idx, fontSize: currentFontSize, themeName: t.name });
-      // Also persist in settings for cross-session reliability
       settings.theme = idx;
       settings.themeName = t.name;
     }
@@ -258,27 +238,32 @@
     // ============================================================
     let fitRAF = null;
     let pendingSavedScroll = null;
+    let isDragging = false;
+    let layoutInProgress = false;
+
+    function captureScrollState() {
+      const state = new Map();
+      for (const [id, pane] of panes) {
+        const buf = pane.term.buffer.active;
+        const viewport = pane.el.querySelector(".xterm-viewport");
+        const atBottom = viewport
+          ? viewport.scrollTop >= viewport.scrollHeight - viewport.clientHeight - 10
+          : true;
+        state.set(id, { viewportY: buf.viewportY, atBottom });
+      }
+      return state;
+    }
+
     function fitAllTerminals(savedScrollPositions) {
-      // If we already have pre-saved scroll positions queued (from renderLayout),
-      // don't let a ResizeObserver call overwrite them with corrupted state
       if (savedScrollPositions) {
         pendingSavedScroll = savedScrollPositions;
       }
       if (fitRAF) cancelAnimationFrame(fitRAF);
       fitRAF = requestAnimationFrame(() => {
         fitRAF = null;
-        // Capture line-based scroll state (stable across resize, unlike pixel scrollTop)
-        const scrollState = pendingSavedScroll || new Map();
-        if (!pendingSavedScroll) {
-          for (const [id, pane] of panes) {
-            const buf = pane.term.buffer.active;
-            const viewport = pane.el.querySelector(".xterm-viewport");
-            const atBottom = viewport
-              ? viewport.scrollTop >= viewport.scrollHeight - viewport.clientHeight - 10
-              : true;
-            scrollState.set(id, { viewportY: buf.viewportY, atBottom });
-          }
-        }
+        // Always capture scroll state — use pre-saved from renderLayout if available,
+        // otherwise capture fresh (this is what the ResizeObserver path uses)
+        const scrollState = pendingSavedScroll || captureScrollState();
         pendingSavedScroll = null;
 
         for (const [id, pane] of panes) {
@@ -295,7 +280,6 @@
           if (pos.atBottom) {
             pane.term.scrollToBottom();
           } else {
-            // scrollToLine uses the buffer line index — stable across row changes
             pane.term.scrollToLine(pos.viewportY);
           }
         }
@@ -303,18 +287,9 @@
     }
 
     function renderLayout() {
-      // Save line-based scroll positions before DOM manipulation (prevents scroll-to-top bug)
-      // Using buffer.viewportY (line offset) instead of pixel scrollTop because pixel
-      // values become invalid after DOM detach/reattach and terminal resize
-      const scrollPositions = new Map();
-      for (const [id, pane] of panes) {
-        const buf = pane.term.buffer.active;
-        const viewport = pane.el.querySelector(".xterm-viewport");
-        const atBottom = viewport
-          ? viewport.scrollTop >= viewport.scrollHeight - viewport.clientHeight - 10
-          : true;
-        scrollPositions.set(id, { viewportY: buf.viewportY, atBottom });
-      }
+      layoutInProgress = true;
+      // Capture scroll state before any DOM manipulation
+      const scrollPositions = captureScrollState();
       // Detach pane elements before clearing to preserve xterm state
       for (const [, pane] of panes) {
         if (pane.el.parentNode) pane.el.parentNode.removeChild(pane.el);
@@ -326,29 +301,27 @@
       // IDE mode: render only visible panes (fullscreen by default)
       if (ideMode) {
         renderIdeEditorTabs();
-        // Determine which panes to show
         if (ideVisiblePanes.length === 0 && activeId && panes.has(activeId)) {
           ideVisiblePanes = [activeId];
         }
         if (ideVisiblePanes.length === 0 && n > 0) {
           ideVisiblePanes = [[...panes.keys()][0]];
         }
-        // Filter to only existing panes
         ideVisiblePanes = ideVisiblePanes.filter(id => panes.has(id));
-        if (ideVisiblePanes.length === 0) { fitAllTerminals(scrollPositions); return; }
+        if (ideVisiblePanes.length === 0) { layoutInProgress = false; fitAllTerminals(scrollPositions); return; }
 
         const rowEl = document.createElement("div");
         rowEl.className = "grid-row"; rowEl.style.flex = "1";
         ideVisiblePanes.forEach((id, i) => {
           if (i > 0) {
             const v = document.createElement("div"); v.className = "resize-handle-v";
-            // Use a temporary layout for IDE splits
             rowEl.appendChild(v);
           }
           const pane = panes.get(id);
           if (pane) { pane.el.style.flex = "1"; rowEl.appendChild(pane.el); }
         });
         grid.appendChild(rowEl);
+        layoutInProgress = false;
         fitAllTerminals(scrollPositions);
         return;
       }
@@ -368,6 +341,7 @@
         frag.appendChild(rowEl);
       }
       grid.appendChild(frag);
+      layoutInProgress = false;
       fitAllTerminals(scrollPositions);
     }
 
@@ -385,8 +359,8 @@
         const name = pane.customName || `Terminal ${id}`;
 
         tab.innerHTML = `
-          <span class="ide-tab-icon">${icon}</span>
-          <span class="ide-tab-name">${name}</span>
+          <span class="ide-tab-icon">${escHtml(icon)}</span>
+          <span class="ide-tab-name">${escHtml(name)}</span>
           ${proc && proc !== "zsh" && proc !== "bash" ? '<span class="ide-tab-modified"></span>' : ""}
           <button class="ide-tab-close">&times;</button>
         `;
@@ -539,6 +513,8 @@
         const pane = panes.get(id);
         pane.el.classList.add("active");
         pane.term.focus();
+        // Clear activity indicator when pane gets focus
+        if (pane.activityDot) pane.activityDot.classList.remove("visible");
         updatePaneTitle(id);
         // IDE mode: switch to this terminal fullscreen (unless it's already visible in a split)
         if (ideMode && !ideVisiblePanes.includes(id)) {
@@ -801,8 +777,72 @@
       }
     });
 
-    async function createPaneObj(cwd, restoreCmd) {
-      const id = await window.shellfire.createTerminal(cwd, restoreCmd);
+    // Sanitize a saved terminal buffer for replay. This is tricky because:
+    // 1. Alt-screen apps (Claude, vim, less) render to a separate buffer — replaying
+    //    their content on the main screen produces garbage. We must skip it entirely.
+    // 2. Mode-change sequences (focus reporting, bracketed paste, mouse tracking)
+    //    left enabled by previous apps cause phantom input events in the new PTY.
+    // 3. Query sequences (DA, DSR, OSC color) trigger xterm to respond, which leaks
+    //    response bytes back into the new PTY's input stream.
+    function sanitizeReplayBuffer(buf) {
+      // Trim any partial escape sequence at the very start (buffer is a tail slice)
+      const firstNl = buf.indexOf("\n");
+      if (firstNl > 0 && firstNl < 200) buf = buf.slice(firstNl + 1);
+
+      // Walk the buffer, tracking alt-screen state. Skip everything while in alt-screen.
+      let out = "";
+      let inAlt = false;
+      let i = 0;
+      const altEnter = /^\x1b\[\?(1049|1047|47)h/;
+      const altExit = /^\x1b\[\?(1049|1047|47)l/;
+      // Any DEC private mode set/reset — we always drop these (don't want old modes carrying over)
+      const decMode = /^\x1b\[\?[\d;]+[hl]/;
+      // DA/DSR queries
+      const daQuery = /^\x1b\[(>|=|\?)?\d*[cn]/;
+      // OSC queries (color etc.)
+      const oscQuery = /^\x1b\][\d;]*\?[^\x07\x1b]*(\x07|\x1b\\)/;
+      // Cursor save/restore
+      const cursorSR = /^\x1b\[[su]/;
+      // Application keypad/cursor
+      const appMode = /^\x1b[=>]/;
+
+      while (i < buf.length) {
+        const rest = buf.slice(i, i + 32);
+        let m;
+        if ((m = rest.match(altEnter))) {
+          inAlt = true;
+          i += m[0].length;
+          continue;
+        }
+        if ((m = rest.match(altExit))) {
+          inAlt = false;
+          i += m[0].length;
+          continue;
+        }
+        if (inAlt) {
+          // Skip everything while alt-screen was active
+          i++;
+          continue;
+        }
+        if ((m = rest.match(decMode))) { i += m[0].length; continue; }
+        if ((m = rest.match(daQuery))) { i += m[0].length; continue; }
+        if ((m = rest.match(oscQuery))) { i += m[0].length; continue; }
+        if ((m = rest.match(cursorSR))) { i += m[0].length; continue; }
+        if ((m = rest.match(appMode))) { i += m[0].length; continue; }
+        out += buf[i++];
+      }
+      return out;
+    }
+
+    // Reset sequence to restore terminal to sane defaults after replay
+    const RESET_SEQ = "\x1b[?1004l\x1b[?2004l\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1049l\x1b[?25h\x1b[0m";
+
+    async function createPaneObj(cwd, restoreCmd, replayBuffer, existingId) {
+      // If an existing PTY id is provided, reuse it (tmux-like reattach).
+      // Otherwise spawn a new PTY via IPC.
+      const id = existingId != null
+        ? existingId
+        : await window.shellfire.createTerminal(cwd, restoreCmd);
       const el = document.createElement("div"); el.className = "pane";
 
       const header = document.createElement("div"); header.className = "pane-header";
@@ -832,8 +872,8 @@
 
       // Drag & drop
       header.setAttribute("draggable", "true");
-      header.addEventListener("dragstart", (e) => { el._dragId = id; e.dataTransfer.effectAllowed = "move"; header.style.opacity = "0.5"; });
-      header.addEventListener("dragend", () => { header.style.opacity = ""; });
+      header.addEventListener("dragstart", (e) => { isDragging = true; el._dragId = id; e.dataTransfer.effectAllowed = "move"; header.style.opacity = "0.5"; });
+      header.addEventListener("dragend", () => { header.style.opacity = ""; isDragging = false; fitAllTerminals(); });
       header.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
       header.addEventListener("dragenter", () => { header.style.borderBottom = "2px solid var(--t-accent)"; });
       header.addEventListener("dragleave", () => { header.style.borderBottom = ""; });
@@ -920,6 +960,29 @@
 
       body.addEventListener("contextmenu", (e) => { e.preventDefault(); showContextMenu(e.clientX, e.clientY, id); });
 
+      // External file/folder drop: paste path into terminal
+      body.addEventListener("dragover", (e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }
+      });
+      body.addEventListener("drop", (e) => {
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          const paths = [...e.dataTransfer.files].map(f => {
+            const p = f.path;
+            if (!p) return null;
+            if (/[\s'"\\$`!#&|;(){}[\]*?<>~]/.test(p)) return `'${p.replace(/'/g, "'\\''")}'`;
+            return p;
+          }).filter(Boolean);
+          if (paths.length > 0) {
+            window.shellfire.sendInput(id, paths.join(" "));
+            term.focus();
+          }
+        }
+      });
+
       const titleEl = header.querySelector(".pane-title");
       const indicatorEl = header.querySelector(".pane-indicator");
       const envBadgeEl = header.querySelector(".env-badge");
@@ -927,7 +990,10 @@
       const activityDot = header.querySelector(".activity-dot");
       const gitBadge = header.querySelector(".git-badge");
       const gitBranchName = header.querySelector(".git-branch-name");
-      panes.set(id, { el, term, fitAddon, searchAddon, titleEl, indicatorEl, envBadgeEl, paneNumberEl, activityDot, gitBadge, gitBranchName, customName: null, locked: false, color: "", termBg: null, termFg: null, createdAt: Date.now(), rawBuffer: "" });
+      const paneObj = { el, term, fitAddon, searchAddon, titleEl, indicatorEl, envBadgeEl, paneNumberEl, activityDot, gitBadge, gitBranchName, customName: null, locked: false, color: "", termBg: null, termFg: null, createdAt: Date.now(), rawBuffer: "" };
+      // If restoring a session, hold PTY data until rawBuffer is replayed
+      if (replayBuffer) paneObj._replayPending = true;
+      panes.set(id, paneObj);
       return id;
     }
 
@@ -998,6 +1064,12 @@
     window.shellfire.onData((id, data) => {
       const pane = panes.get(id);
       if (!pane) return;
+      // While replaying saved buffer, queue incoming PTY data to prevent interleaving
+      if (pane._replayPending) {
+        if (!pane._replayQueue) pane._replayQueue = [];
+        pane._replayQueue.push(data);
+        return;
+      }
       pane.term.write(data);
       // Accumulate raw output for session restore using chunked array
       if (!pane._rawChunks) pane._rawChunks = [];
@@ -1414,26 +1486,27 @@
       const paneStates = [];
       for (const [id] of panes) {
         const pane = panes.get(id);
-        const cwd = await window.shellfire.getCwd(id);
-        // Capture the running foreground process (e.g. claude, vim, python)
-        let restoreCmd = null;
+        // Fetch fresh CWD and process info (async IPC)
+        try {
+          pane._lastCwd = await window.shellfire.getCwd(id) || pane._lastCwd || null;
+        } catch {}
         try {
           const proc = await window.shellfire.getProcessTree(id);
           if (proc && proc.args) {
-            const shell = (process.env?.SHELL || "").split("/").pop() || "zsh";
             const comm = (proc.comm || "").split("/").pop();
-            // Save command if it's not just the shell itself
-            if (comm && comm !== shell && comm !== "bash" && comm !== "zsh" && comm !== "fish" && comm !== "sh") {
-              restoreCmd = proc.args;
+            if (comm && comm !== "zsh" && comm !== "bash" && comm !== "fish" && comm !== "sh") {
+              pane._lastRestoreCmd = proc.args;
+            } else {
+              pane._lastRestoreCmd = null;
             }
           }
         } catch {}
-        // Compact raw chunks into rawBuffer for serialization
+        // Compact raw chunks into rawBuffer
         if (pane._rawChunks && pane._rawChunks.length > 0) {
           pane.rawBuffer = pane._rawChunks.join("").slice(-bufferLimit);
         }
         paneStates.push({
-          cwd: cwd || null,
+          cwd: pane._lastCwd || null,
           customName: pane.customName || null,
           userRenamed: pane._userRenamed || false,
           color: pane.color || "",
@@ -1441,7 +1514,7 @@
           termFg: pane.termFg || null,
           locked: pane.locked || false,
           rawBuffer: pane.rawBuffer || "",
-          restoreCmd: restoreCmd,
+          restoreCmd: pane._lastRestoreCmd || null,
         });
       }
       window.shellfire.saveSession({
@@ -1449,11 +1522,44 @@
         layout: JSON.parse(JSON.stringify(layout)),
         paneStates,
         theme: currentThemeIdx,
+        themeName: (themes[currentThemeIdx] || themes[0]).name,
         fontSize: currentFontSize,
         broadcastMode,
         skipPermissions,
       });
       if (!silent) showToast("Session saved");
+    }
+
+    // Fast synchronous save for beforeunload — uses cached CWD/process, no async IPC
+    function saveCurrentSessionSync() {
+      const paneStates = [];
+      for (const [id] of panes) {
+        const pane = panes.get(id);
+        if (pane._rawChunks && pane._rawChunks.length > 0) {
+          pane.rawBuffer = pane._rawChunks.join("").slice(-bufferLimit);
+        }
+        paneStates.push({
+          cwd: pane._lastCwd || null,
+          customName: pane.customName || null,
+          userRenamed: pane._userRenamed || false,
+          color: pane.color || "",
+          termBg: pane.termBg || null,
+          termFg: pane.termFg || null,
+          locked: pane.locked || false,
+          rawBuffer: pane.rawBuffer || "",
+          restoreCmd: pane._lastRestoreCmd || null,
+        });
+      }
+      window.shellfire.saveSession({
+        version: 2,
+        layout: JSON.parse(JSON.stringify(layout)),
+        paneStates,
+        theme: currentThemeIdx,
+        themeName: (themes[currentThemeIdx] || themes[0]).name,
+        fontSize: currentFontSize,
+        broadcastMode,
+        skipPermissions,
+      });
     }
 
     async function restoreSession() {
@@ -1473,17 +1579,26 @@
           let failedCount = 0;
           for (const ps of session.paneStates) {
             let id;
-            try { id = await createPaneObj(ps.cwd, ps.restoreCmd || null); } catch (e) {
+            const hasBuffer = !!ps.rawBuffer;
+            try { id = await createPaneObj(ps.cwd, ps.restoreCmd || null, hasBuffer); } catch (e) {
               console.error("Failed to restore pane:", e);
               failedCount++;
               continue;
             }
             const pane = panes.get(id);
             if (pane) {
-              // Replay saved scrollback buffer (with ANSI codes for color)
-              if (ps.rawBuffer) {
-                pane.term.write(ps.rawBuffer);
+              if (hasBuffer) {
+                const sanitized = sanitizeReplayBuffer(ps.rawBuffer);
+                pane.term.write(sanitized);
+                pane.term.write(RESET_SEQ);
                 pane.rawBuffer = ps.rawBuffer;
+                pane._rawChunks = [ps.rawBuffer];
+                pane._rawSize = ps.rawBuffer.length;
+                pane._replayPending = false;
+                if (pane._replayQueue) {
+                  for (const chunk of pane._replayQueue) pane.term.write(chunk);
+                  pane._replayQueue = null;
+                }
               }
               // Restore pane metadata
               if (ps.customName) {
@@ -1603,14 +1718,14 @@
         if (p?.color) dotClass = `color-${p.color}`;
         else if (id !== activeId && p?.activityDot?.classList.contains("visible")) dotClass = "activity";
 
-        // Process info
+        // Process info (escape for safe innerHTML insertion)
         const proc = p?._lastProcess;
-        const procHtml = proc && proc !== "zsh" && proc !== "bash" && proc !== "fish" ? `<span class="tab-process">${proc}</span>` : "";
+        const procHtml = proc && proc !== "zsh" && proc !== "bash" && proc !== "fish" ? `<span class="tab-process">${escHtml(proc)}</span>` : "";
 
         // Git info
         const branch = p?._lastGitBranch;
         const dirty = p?._lastGitDirty;
-        const gitHtml = branch ? `<span class="tab-git${dirty ? " dirty" : ""}">${branch}</span>` : "";
+        const gitHtml = branch ? `<span class="tab-git${dirty ? " dirty" : ""}">${escHtml(branch)}</span>` : "";
 
         // Duration
         const startTime = p?._commandStart;
@@ -1623,7 +1738,7 @@
           }
         }
 
-        tab.innerHTML = `<span class="tab-num">${i < 9 ? i + 1 : ""}</span><span class="tab-dot ${dotClass}"></span>${shortName}${procHtml}${gitHtml}${durationHtml}<button class="tab-close">&times;</button>`;
+        tab.innerHTML = `<span class="tab-num">${i < 9 ? i + 1 : ""}</span><span class="tab-dot ${dotClass}"></span>${escHtml(shortName)}${procHtml}${gitHtml}${durationHtml}<button class="tab-close">&times;</button>`;
         tab.addEventListener("click", (e) => { if (!e.target.classList.contains("tab-close")) setActive(id); });
         tab.querySelector(".tab-close").addEventListener("click", (e) => { e.stopPropagation(); removeTerminal(id); });
         tab.addEventListener("dblclick", (e) => { e.preventDefault(); renamePaneUI(id); });
@@ -2072,6 +2187,7 @@
     function setupTabDrag(tabEl, paneId) {
       tabEl.setAttribute("draggable", "true");
       tabEl.addEventListener("dragstart", (e) => {
+        isDragging = true;
         dragTabId = paneId;
         e.dataTransfer.effectAllowed = "move";
         tabEl.style.opacity = "0.4";
@@ -2079,7 +2195,9 @@
       tabEl.addEventListener("dragend", () => {
         tabEl.style.opacity = "";
         dragTabId = null;
+        isDragging = false;
         document.querySelectorAll(".tab").forEach(t => t.classList.remove("drag-over"));
+        fitAllTerminals();
       });
       tabEl.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
       tabEl.addEventListener("dragenter", () => { if (dragTabId !== paneId) tabEl.classList.add("drag-over"); });
@@ -2687,11 +2805,6 @@
       if (p.includes("go")) return "\u{1F439}";
       if (p.includes("ruby")) return "\u{1F48E}";
       return "\u{1F4BB}";
-    }
-
-    const _escMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-    function escHtml(str) {
-      return String(str).replace(/[&<>"']/g, c => _escMap[c]);
     }
 
     // ============================================================
@@ -5429,6 +5542,8 @@
     function setupAutoSave() {
       if (autoSaveTimer) clearInterval(autoSaveTimer);
       if (settings.autoSaveSession !== false) {
+        // First save after 5s so cached CWD/process data is available for beforeunload
+        setTimeout(() => { if (panes.size > 0) saveCurrentSession(true); }, 5000);
         autoSaveTimer = setInterval(() => { if (panes.size > 0) saveCurrentSession(true); }, autoSaveInterval * 1000);
       }
     }
@@ -5561,12 +5676,14 @@
     // ============================================================
     let resizeDebounce = null;
     new ResizeObserver(() => {
+      if (isDragging || layoutInProgress) return;
       clearTimeout(resizeDebounce);
-      resizeDebounce = setTimeout(() => fitAllTerminals(), 50);
+      resizeDebounce = setTimeout(() => fitAllTerminals(), 100);
     }).observe(grid);
     window.addEventListener("beforeunload", () => {
-      window.shellfire.saveConfig({ theme: currentThemeIdx, fontSize: currentFontSize });
-      saveCurrentSession(true);
+      window.shellfire.saveConfig({ theme: currentThemeIdx, fontSize: currentFontSize, themeName: (themes[currentThemeIdx] || themes[0]).name });
+      // Use sync save — beforeunload doesn't wait for async, so IPC calls would never complete
+      saveCurrentSessionSync();
     });
     setupAutoSave();
 
@@ -5583,19 +5700,27 @@
 
     async function activateSinglePlugin(pluginName, type) {
       if (_loadedPlugins.has(pluginName)) return;
-      const result = await window.shellfire.getPluginCode(pluginName);
-      if (result.error) { showToast(`Plugin error: ${pluginName} — ${result.error}`, "error"); return; }
-
-      const pluginExports = {};
       try {
-        const pluginFn = new Function("exports", result.code);
-        pluginFn(pluginExports);
-      } catch (evalErr) {
-        showToast(`Plugin eval error: ${pluginName} — ${evalErr.message}`, "error");
-        return;
+        const result = await window.shellfire.getPluginCode(pluginName);
+        if (!result || result.error) {
+          console.warn(`Plugin ${pluginName}: ${result?.error || "no code returned"}`);
+          return;
+        }
+
+        const pluginExports = {};
+        try {
+          const pluginFn = new Function("exports", result.code);
+          pluginFn(pluginExports);
+        } catch (evalErr) {
+          console.error(`Plugin eval error: ${pluginName}`, evalErr);
+          showToast(`Plugin error: ${pluginName}`, "error");
+          return;
+        }
+        _loadedPlugins.add(pluginName);
+        await _applyPlugin(pluginExports, pluginName, type);
+      } catch (err) {
+        console.error(`Plugin load failed: ${pluginName}`, err);
       }
-      _loadedPlugins.add(pluginName);
-      await _applyPlugin(pluginExports, pluginName, type);
     }
 
     async function _applyPlugin(pluginExports, pluginName, type) {
@@ -5666,8 +5791,18 @@
         const bottombar = document.querySelector(".bottombar");
         const paneCountEl2 = document.getElementById("pane-count");
         if (bottombar && paneCountEl2) bottombar.insertBefore(widget, paneCountEl2);
+        let errorCount = 0;
         const intervalId = setInterval(() => {
-          try { widget.innerHTML = pluginExports.render(sbCtx); } catch {}
+          try {
+            if (_appVisible) widget.innerHTML = pluginExports.render(sbCtx);
+            errorCount = 0;
+          } catch (err) {
+            errorCount++;
+            if (errorCount >= 3) {
+              clearInterval(intervalId);
+              console.warn(`Statusbar plugin "${pluginName}" disabled after repeated errors`);
+            }
+          }
         }, 5000);
         reg.widgetEl = widget;
         reg.intervals.push(intervalId);
@@ -6512,39 +6647,116 @@
         if (config) {
           if (config.theme >= 0 && config.theme < themes.length) currentThemeIdx = config.theme;
           if (config.fontSize) currentFontSize = config.fontSize;
-          // Remember the saved theme name BEFORE applyTheme can overwrite it
           if (config.themeName) _savedThemeName = config.themeName;
         }
         // Settings override config
         if (settings.theme >= 0 && settings.theme < themes.length) currentThemeIdx = settings.theme;
+        if (settings.themeName) _savedThemeName = settings.themeName;
         if (settings.fontSize) currentFontSize = settings.fontSize;
+        // Session override (most recent state)
+        if (savedSession && savedSession.themeName) _savedThemeName = savedSession.themeName;
+        if (savedSession && savedSession.theme >= 0 && savedSession.theme < themes.length) currentThemeIdx = savedSession.theme;
         if (Array.isArray(savedSnippets)) snippets = savedSnippets;
         if (Array.isArray(savedProfiles)) profiles = savedProfiles;
 
-        // Try to restore previous session with full scrollback
-        if (savedSession && ((savedSession.version === 2 && savedSession.paneStates?.length > 0) || (savedSession.cwds?.length > 0))) {
-          // Apply theme first so restored content renders correctly
-          applyTheme(currentThemeIdx);
+        // Set CSS custom properties early (no toast, no config save) so terminals render correctly
+        {
+          const t = themes[currentThemeIdx] || themes[0];
+          const root = document.documentElement;
+          root.style.setProperty("--t-bg", t.body);
+          root.style.setProperty("--t-fg", t.term.foreground || "#cccccc");
+          root.style.setProperty("--t-ui", t.ui);
+          root.style.setProperty("--t-border", t.border);
+          root.style.setProperty("--t-accent", t.term.cursor || "#00f0ff");
+        }
 
+        // === TMUX-LIKE REATTACH ===
+        // Check for live PTYs from a previous window session. If any exist,
+        // reattach to them (they kept running while the window was closed).
+        let reattached = false;
+        try {
+          const livePtys = await window.shellfire.listPtys();
+          if (Array.isArray(livePtys) && livePtys.length > 0) {
+            for (const ep of livePtys) {
+              // Create pane hooked to the EXISTING PTY id — no new shell spawned
+              const id = await createPaneObj(ep.cwd, null, true, ep.id);
+              const pane = panes.get(id);
+              if (pane && ep.buffer) {
+                // Write the live PTY's accumulated output directly to xterm.
+                // These are the exact bytes the PTY emitted, so xterm will
+                // reproduce the same visual state (including alt-screen apps).
+                pane.term.write(ep.buffer);
+                pane.rawBuffer = ep.buffer;
+                pane._rawChunks = [ep.buffer];
+                pane._rawSize = ep.buffer.length;
+                pane._replayPending = false;
+                if (pane._replayQueue) {
+                  for (const chunk of pane._replayQueue) pane.term.write(chunk);
+                  pane._replayQueue = null;
+                }
+              }
+              // Apply session metadata if we can match by cwd or just by order
+              if (savedSession?.paneStates) {
+                const match = savedSession.paneStates.find(ps => ps.cwd === ep.cwd);
+                if (match && pane) {
+                  if (match.customName) { pane.customName = match.customName; pane.titleEl.textContent = match.customName; }
+                  if (match.userRenamed) pane._userRenamed = true;
+                  if (match.color) applyPaneColor(id, match.color, match.termBg || null, match.termFg || null);
+                  if (match.locked) { pane.locked = true; pane.el.classList.add("locked"); pane.el.querySelector(".lock-badge")?.classList.add("locked"); }
+                }
+              }
+            }
+            // Restore layout if it matches the reattached pane count
+            if (savedSession?.layout?.length > 0) {
+              const savedIds = [];
+              for (const row of savedSession.layout) for (const col of row.cols) savedIds.push(col.paneId);
+              const currentIds = [...panes.keys()];
+              if (savedIds.length === currentIds.length) {
+                layout = JSON.parse(JSON.stringify(savedSession.layout));
+                for (let ri = 0; ri < layout.length; ri++)
+                  for (let ci = 0; ci < layout[ri].cols.length; ci++) {
+                    const oldIdx = savedIds.indexOf(layout[ri].cols[ci].paneId);
+                    if (oldIdx >= 0 && oldIdx < currentIds.length) layout[ri].cols[ci].paneId = currentIds[oldIdx];
+                  }
+                renderLayout();
+              } else rebuildLayout();
+            } else rebuildLayout();
+            const first = [...panes.keys()][0];
+            if (first) setActive(first);
+            showToast(`Reattached to ${livePtys.length} terminal${livePtys.length > 1 ? "s" : ""}`);
+            reattached = true;
+          }
+        } catch (err) {
+          console.error("Reattach error:", err);
+        }
+
+        // If no live PTYs (fresh launch or after reboot), try session restore from disk
+        if (!reattached && savedSession && ((savedSession.version === 2 && savedSession.paneStates?.length > 0) || (savedSession.cwds?.length > 0))) {
           if (savedSession.version === 2 && savedSession.paneStates?.length > 0) {
             for (const ps of savedSession.paneStates) {
-              const id = await createPaneObj(ps.cwd, ps.restoreCmd || null);
+              const hasBuffer = !!ps.rawBuffer;
+              const id = await createPaneObj(ps.cwd, ps.restoreCmd || null, hasBuffer);
               const pane = panes.get(id);
               if (pane) {
-                // Replay saved scrollback
-                if (ps.rawBuffer) {
-                  pane.term.write(ps.rawBuffer);
+                if (hasBuffer) {
+                  const sanitized = sanitizeReplayBuffer(ps.rawBuffer);
+                  pane.term.write(sanitized);
+                  pane.term.write(RESET_SEQ);
                   pane.rawBuffer = ps.rawBuffer;
+                  pane._rawChunks = [ps.rawBuffer];
+                  pane._rawSize = ps.rawBuffer.length;
+                  pane._replayPending = false;
+                  if (pane._replayQueue) {
+                    for (const chunk of pane._replayQueue) pane.term.write(chunk);
+                    pane._replayQueue = null;
+                  }
                 }
                 if (ps.customName) { pane.customName = ps.customName; pane.titleEl.textContent = ps.customName; }
                 if (ps.userRenamed) pane._userRenamed = true;
-                if (ps.color) {
-                  applyPaneColor(id, ps.color, ps.termBg || null, ps.termFg || null);
-                }
+                if (ps.color) applyPaneColor(id, ps.color, ps.termBg || null, ps.termFg || null);
                 if (ps.locked) { pane.locked = true; pane.el.classList.add("locked"); pane.el.querySelector(".lock-badge")?.classList.add("locked"); }
               }
             }
-            // Restore layout with flex ratios
             if (savedSession.layout?.length > 0) {
               const savedIds = [];
               for (const row of savedSession.layout) for (const col of row.cols) savedIds.push(col.paneId);
@@ -6561,52 +6773,43 @@
             } else rebuildLayout();
 
             if (savedSession.skipPermissions) { skipPermissions = false; toggleSkipPermissions(); }
-
             const count = savedSession.paneStates.length;
-            showToast(`Restored ${count} terminal${count > 1 ? "s" : ""} with scrollback`);
+            showToast(`Restored ${count} terminal${count > 1 ? "s" : ""}`);
           } else {
-            // V1 fallback
             for (const cwd of savedSession.cwds) await createPaneObj(cwd);
             rebuildLayout();
             showToast(`Restored ${savedSession.cwds.length} terminal${savedSession.cwds.length > 1 ? "s" : ""}`);
           }
           const first = [...panes.keys()][0];
           if (first) setActive(first);
-        } else {
-          // Try auto-startup tasks before creating a default terminal
+        } else if (!reattached) {
+          // Fresh start — no live PTYs, no saved session
           const didAutoStart = await runAutoStartupTasks();
           if (!didAutoStart) {
-            const id = await addTerminal();
+            await addTerminal();
           }
         }
-        applyTheme(currentThemeIdx);
         updateWelcomeScreen();
-
 
         // Check for first-run onboarding
         if (await checkOnboarding()) {
           showOnboarding();
         }
 
-        // Load plugins
+        // Load plugins (may add new themes)
         await loadPlugins();
-
-        // Refresh all theme dropdowns with plugin themes
         _refreshThemeUIs();
 
-        // Re-apply saved theme by name (plugins may have added it after init)
+        // Single, final theme application — resolves saved name including plugin themes
         if (_savedThemeName) {
           const savedIdx = themes.findIndex(t => t.name === _savedThemeName);
-          if (savedIdx >= 0 && savedIdx !== currentThemeIdx) {
-            applyTheme(savedIdx);
-          }
+          if (savedIdx >= 0) currentThemeIdx = savedIdx;
         }
+        applyTheme(currentThemeIdx, true);
 
         // Initialize IDE sidebar if enabled
         if (ideMode) setTimeout(() => updateIdeSidebar(), 200);
-        // Initial bottom bar update
         setTimeout(() => updateBottomBar(), 500);
-        // Initial status bar widget update
         setTimeout(() => { updateK8sWidget(); updateAwsWidget(); }, 1000);
       } catch (err) {
         console.error("Init error:", err);
@@ -6617,15 +6820,18 @@
     // ============================================================
     // CLEANUP ON UNLOAD (prevent interval leaks on renderer reload)
     // ============================================================
-    const _globalIntervals = [];
-    const _origSetInterval = window.setInterval;
-    // No need to override globally — just track on unload
     window.addEventListener("beforeunload", () => {
       // Clear all watch timers
       for (const [, w] of watchTimers) clearInterval(w.timer);
       watchTimers.clear();
       // Clear auto-save timer
       if (autoSaveTimer) clearInterval(autoSaveTimer);
+      // Clear all plugin intervals to prevent leaks on reload
+      for (const [, reg] of _pluginRegistry) {
+        for (const id of reg.intervals) clearInterval(id);
+      }
+      _pluginRegistry.clear();
+      _loadedPlugins.clear();
     });
 
     // ============================================================
