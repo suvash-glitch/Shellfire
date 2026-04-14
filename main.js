@@ -418,7 +418,7 @@ async function handleSocketCommand(raw, conn) {
           // Write directly to the pty in main process
           const p = ptys.get(resolved.id);
           if (p) {
-            p.write(cmd.text + "\r");
+            p.write(cmd.text);
             conn.end(JSON.stringify(resolved));
           } else {
             conn.end(JSON.stringify({ error: "PTY not found for session " + resolved.id }));
@@ -464,6 +464,33 @@ async function handleSocketCommand(raw, conn) {
           })()
         `);
         conn.end(JSON.stringify(result));
+        break;
+      }
+      case "read": {
+        // Return the ptyBuffer (scrollback) for a session, optionally limited to N lines.
+        const safeName = JSON.stringify(cmd.name);
+        const resolved = await mainWindow.webContents.executeJavaScript(`
+          (function() {
+            const target = ${safeName};
+            for (const [id, pane] of window.__panes || new Map()) {
+              const name = pane.customName || "Terminal " + id;
+              if (name === target || String(id) === target) {
+                return { id, name };
+              }
+            }
+            return { error: "Session not found: " + target };
+          })()
+        `);
+        if (resolved.error) {
+          conn.end(JSON.stringify(resolved));
+          break;
+        }
+        let buf = ptyBuffers.get(resolved.id) || "";
+        if (cmd.lines && typeof cmd.lines === "number" && cmd.lines > 0) {
+          const all = buf.split("\n");
+          buf = all.slice(-Math.min(cmd.lines, all.length)).join("\n");
+        }
+        conn.end(JSON.stringify({ id: resolved.id, name: resolved.name, output: buf }));
         break;
       }
       default:
