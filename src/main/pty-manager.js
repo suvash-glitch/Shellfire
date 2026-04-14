@@ -5,6 +5,7 @@
 // Owns PTY lifecycle: create, resize, input, kill, query.
 // ============================================================
 
+const fs = require("fs");
 const os = require("os");
 const { ipcMain } = require("electron");
 const pty = require("node-pty");
@@ -158,9 +159,8 @@ function registerHandlers() {
       try { childPid = (await execFileAsync("pgrep", ["-P", pid])).split("\n")[0]; } catch {}
       const target = childPid || pid;
       if (process.platform === "linux") {
-        const { fs: _fs } = require("fs");
         try {
-          const envStr = require("fs").readFileSync(`/proc/${target}/environ`, "utf8");
+          const envStr = fs.readFileSync(`/proc/${target}/environ`, "utf8");
           const pairs = envStr.split("\0").filter(Boolean).map(entry => {
             const eq = entry.indexOf("=");
             return eq > 0 ? { key: entry.slice(0, eq), value: entry.slice(eq + 1) } : null;

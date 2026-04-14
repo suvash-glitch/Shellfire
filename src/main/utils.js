@@ -65,6 +65,24 @@ function isValidPort(p) {
 // ATOMIC JSON STORAGE
 // ============================================================
 
+/**
+ * Like sanitizePath but for files (not directories).
+ * Validates path is within home or /tmp, and that null bytes/traversal
+ * are absent. Does NOT check isDirectory — callers handle that themselves.
+ */
+function sanitizeFilePath(p) {
+  if (typeof p !== "string") return null;
+  if (p.includes("\0")) return null;
+  const home = os.homedir();
+  let expanded = p;
+  if (expanded === "~") expanded = home;
+  else if (expanded.startsWith("~/")) expanded = path.join(home, expanded.slice(2));
+  const resolved = path.resolve(expanded);
+  const tmp = os.tmpdir();
+  if (!resolved.startsWith(home) && !resolved.startsWith(tmp) && !resolved.startsWith("/tmp")) return null;
+  return resolved;
+}
+
 function readJSON(filePath, fallback) {
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -85,4 +103,4 @@ function writeJSON(filePath, data) {
   }
 }
 
-module.exports = { log, execFileAsync, sanitizePath, isValidHost, isValidUser, isValidPort, readJSON, writeJSON };
+module.exports = { log, execFileAsync, sanitizePath, sanitizeFilePath, isValidHost, isValidUser, isValidPort, readJSON, writeJSON };

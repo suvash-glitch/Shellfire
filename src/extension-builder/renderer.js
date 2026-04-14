@@ -204,25 +204,34 @@ module.exports = {
   }
 
   // ── Open existing folder ──────────────────────────────────────
+  // Platform-aware path join for renderer (no node `path` module available)
+  function joinPath(...parts) {
+    const sep = window.builder.platform === "win32" ? "\\" : "/";
+    return parts.join(sep).replace(/[/\\]+/g, sep);
+  }
+
   async function openFolder() {
     const result = await window.builder.openFolder();
     if (result.canceled) return;
     folderPath = result.folderPath;
     setStatus("Loading…");
-    const { files: entries } = await window.builder.listDir(folderPath);
+    const { files: entries, error } = await window.builder.listDir(folderPath);
+    if (error) { showToast(error, "err"); return; }
     files = {};
     dirty.clear();
     openTabs = [];
     activeFile = null;
     for (const e of (entries || [])) {
       if (e.isDir) continue;
-      const r = await window.builder.readFile(folderPath + "/" + e.name);
+      const r = await window.builder.readFile(joinPath(folderPath, e.name));
       if (!r.error) files[e.name] = r.content;
     }
-    openTab("plugin.json");
-    openTab("index.js");
+    // Open important files first; fall back gracefully
+    const toOpen = ["plugin.json", "index.js"].filter(n => files[n] !== undefined);
+    const first = Object.keys(files)[0];
+    for (const name of (toOpen.length ? toOpen : [first]).filter(Boolean)) openTab(name);
     syncManifestForm();
-    setStatus(`Opened ${folderPath.split("/").pop()}`);
+    setStatus(`Opened ${folderPath.split(/[/\\]/).pop()}`);
   }
 
   // ── Save ──────────────────────────────────────────────────────
@@ -234,7 +243,7 @@ module.exports = {
     }
     setStatus("Saving…");
     for (const [name, content] of Object.entries(files)) {
-      await window.builder.writeFile(folderPath + "/" + name, content);
+      await window.builder.writeFile(joinPath(folderPath, name), content);
       dirty.delete(name);
     }
     renderFileList(); renderTabBar();

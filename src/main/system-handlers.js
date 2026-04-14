@@ -40,9 +40,13 @@ function registerHandlers() {
   });
 
   ipcMain.handle("cron-add", async (_, cronLine) => {
+    // Validate: must be a non-empty single line with no null bytes or newlines
+    if (typeof cronLine !== "string" || !cronLine.trim() || cronLine.includes("\n") || cronLine.includes("\0")) {
+      return false;
+    }
     try {
       const existing = (await getCrontab()).trim();
-      setCrontab(existing ? existing + "\n" + cronLine : cronLine);
+      setCrontab(existing ? existing + "\n" + cronLine.trim() : cronLine.trim());
       return true;
     } catch { return false; }
   });

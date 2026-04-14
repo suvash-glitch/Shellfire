@@ -12,7 +12,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { ipcMain, app } = require("electron");
-const { readJSON, writeJSON, log, sanitizePath } = require("./utils");
+const { readJSON, writeJSON, log, sanitizeFilePath } = require("./utils");
 
 // ── Storage paths ─────────────────────────────────────────────
 
@@ -158,10 +158,16 @@ function registerHandlers(ptys) {
   ipcMain.handle("inject-secrets", (_, { id, secrets }) => {
     const p = ptys.get(id);
     if (!p) return { error: "Terminal not found" };
+    // Validate env var names: must be [A-Za-z_][A-Za-z0-9_]* to prevent shell injection
+    const SAFE_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
+    let count = 0;
     for (const s of secrets) {
-      if (s.key && s.value) p.write(` export ${s.key}=${JSON.stringify(s.value)}\n`);
+      if (s.key && SAFE_KEY.test(s.key) && typeof s.value === "string") {
+        p.write(` export ${s.key}=${JSON.stringify(s.value)}\n`);
+        count++;
+      }
     }
-    return { ok: true, count: secrets.length };
+    return { ok: true, count };
   });
 
   // Terminal logging
@@ -177,7 +183,7 @@ function registerHandlers(ptys) {
   ipcMain.handle("read-file", async (_, filePath, maxBytes) => {
     try {
       if (typeof filePath !== "string") return { error: "Invalid file path" };
-      const resolved = sanitizePath(filePath);
+      const resolved = sanitizeFilePath(filePath);
       if (!resolved) return { error: "Invalid file path" };
       if (maxBytes !== undefined && (typeof maxBytes !== "number" || maxBytes <= 0 || maxBytes > 10 * 1024 * 1024)) {
         return { error: "Invalid maxBytes (must be 1–10 MB)" };

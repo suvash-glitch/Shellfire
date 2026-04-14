@@ -112,9 +112,16 @@ function registerHandlers() {
   });
 
   ipcMain.handle("builder:write-file", (_, filePath, content) => {
+    // Only allow writes inside home dir or /tmp
+    if (typeof filePath !== "string" || filePath.includes("\0")) return { error: "Invalid path" };
+    const resolved = path.resolve(filePath);
+    const home = os.homedir();
+    if (!resolved.startsWith(home) && !resolved.startsWith(os.tmpdir()) && !resolved.startsWith("/tmp")) {
+      return { error: "Access denied: path outside allowed directories" };
+    }
     try {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      fs.writeFileSync(filePath, content, "utf8");
+      fs.mkdirSync(path.dirname(resolved), { recursive: true });
+      fs.writeFileSync(resolved, content, "utf8");
       return { ok: true };
     } catch (e) { return { error: e.message }; }
   });
