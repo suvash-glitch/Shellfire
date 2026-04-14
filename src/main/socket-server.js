@@ -42,6 +42,12 @@ async function resolveSession(name) {
 // ── Command handlers ─────────────────────────────────────────
 
 async function handleCommand(cmd, conn) {
+  // Basic structural validation — malformed commands must not reach the switch
+  if (!cmd || typeof cmd !== "object" || typeof cmd.action !== "string") {
+    conn.end(JSON.stringify({ error: "Malformed command" }));
+    return;
+  }
+
   const win = getWindow();
   if (!win || win.isDestroyed()) {
     conn.end(JSON.stringify({ error: "No active window" }));
@@ -79,13 +85,15 @@ async function handleCommand(cmd, conn) {
       if (!ptyProc) { conn.end(JSON.stringify({ error: "PTY not found" })); break; }
 
       conn.write(JSON.stringify({ ok: true, id: resolved.id, name: resolved.name }) + "\n");
-      // Replay buffered output
+      // Replay buffered output so the attaching client sees history
       const buf = ptyBuffers.get(resolved.id) || "";
       if (buf) conn.write(buf);
-      // Bidirectional pipe
+      // Bidirectional pipe — dispose listener on both close AND error
       const dataHandler = ptyProc.onData(data => { if (!conn.destroyed) conn.write(data); });
-      conn.on("data", chunk => ptyProc.write(chunk.toString()));
-      conn.on("close", () => dataHandler.dispose());
+      const cleanup = () => { try { dataHandler.dispose(); } catch {} };
+      conn.on("data", chunk => { if (!conn.destroyed) ptyProc.write(chunk.toString()); });
+      conn.on("close", cleanup);
+      conn.on("error", cleanup);
       break;
     }
 
@@ -106,6 +114,7 @@ async function handleCommand(cmd, conn) {
     }
 
     case "send": {
+      if (typeof cmd.text !== "string") { conn.end(JSON.stringify({ error: "text must be a string" })); break; }
       let resolved;
       try { resolved = await resolveSession(cmd.name); } catch (e) {
         conn.end(JSON.stringify({ error: e.message })); break;
@@ -130,11 +139,14 @@ async function handleCommand(cmd, conn) {
     }
 
     case "rename": {
+      if (typeof cmd.newName !== "string" || !cmd.newName.trim()) {
+        conn.end(JSON.stringify({ error: "newName must be a non-empty string" })); break;
+      }
       let resolved;
       try { resolved = await resolveSession(cmd.name); } catch (e) {
         conn.end(JSON.stringify({ error: e.message })); break;
       }
-      const safeNew = JSON.stringify(cmd.newName);
+      const safeNew = JSON.stringify(cmd.newName.trim());
       const result = await win.webContents.executeJavaScript(`
         (function() {
           const pane = (window.__panes||new Map()).get(${resolved.id});
@@ -154,9 +166,12 @@ async function handleCommand(cmd, conn) {
         conn.end(JSON.stringify({ error: e.message })); break;
       }
       let buf = ptyBuffers.get(resolved.id) || "";
-      if (cmd.lines && typeof cmd.lines === "number" && cmd.lines > 0) {
+      const lineLimit = typeof cmd.lines === "number" && Number.isFinite(cmd.lines) && cmd.lines > 0
+        ? Math.min(Math.floor(cmd.lines), 2000)
+        : null;
+      if (lineLimit !== null) {
         const all = buf.split("\n");
-        buf = all.slice(-Math.min(cmd.lines, all.length)).join("\n");
+        buf = all.slice(-lineLimit).join("\n");
       }
       conn.end(JSON.stringify({ id: resolved.id, name: resolved.name, output: buf }));
       break;

@@ -16,9 +16,13 @@ try { ({ autoUpdater } = require("electron-updater")); } catch {}
 
 // Zen mode state
 let zenActive = false;
+let zenTransitioning = false; // debounce rapid toggles
 let zenPreBounds = null;
 let zenWasMaximized = false;
 let zenWasFullScreen = false;
+
+// Auto-update interval (stored so it can be cleared on quit)
+let _updateCheckInterval = null;
 
 // ── Window creation ───────────────────────────────────────────
 
@@ -85,7 +89,7 @@ function setupAutoUpdater() {
   autoUpdater.on("error", (err) => { log("error", "Auto-update error:", err.message); send({ status: "error", message: err.message }); });
 
   autoUpdater.checkForUpdates().catch(() => {});
-  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
+  _updateCheckInterval = setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
 }
 
 // ── IPC handlers ─────────────────────────────────────────────
@@ -105,7 +109,8 @@ function registerHandlers() {
 
   ipcMain.handle("toggle-zen-mode", async () => {
     const win = getWindow();
-    if (!win) return false;
+    if (!win || zenTransitioning) return zenActive;
+    zenTransitioning = true;
     zenActive = !zenActive;
 
     if (zenActive) {
@@ -140,6 +145,7 @@ function registerHandlers() {
     }
 
     sendToRenderer("zen-mode-changed", zenActive);
+    zenTransitioning = false;
     return zenActive;
   });
 
@@ -164,11 +170,16 @@ function registerHandlers() {
     return (!win || win.isDestroyed()) ? 1 : win.webContents.getZoomFactor();
   });
 
-  // Quit: kill all PTYs before exit
+  // Quit: kill all PTYs and clear intervals before exit
   ipcMain.on("quit-app", () => {
-    for (const [, p] of ptys) p.kill();
+    if (_updateCheckInterval) { clearInterval(_updateCheckInterval); _updateCheckInterval = null; }
+    for (const [, p] of ptys) { try { p.kill(); } catch {} }
     app.quit();
   });
 }
 
-module.exports = { createWindow, setupAutoUpdater, registerHandlers };
+function cleanup() {
+  if (_updateCheckInterval) { clearInterval(_updateCheckInterval); _updateCheckInterval = null; }
+}
+
+module.exports = { createWindow, setupAutoUpdater, registerHandlers, cleanup };

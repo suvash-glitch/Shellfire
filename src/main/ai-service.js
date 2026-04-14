@@ -45,10 +45,12 @@ function sanitizeCompletion(raw) {
 // ── Provider implementations ─────────────────────────────────
 
 async function callAnthropic(apiKey, model, messages, system, maxTokens, temperature) {
+  const body = { model: model || "claude-haiku-4-5-20251001", max_tokens: maxTokens, system, messages };
+  if (temperature !== undefined) body.temperature = temperature;
   const r = await fetchAI("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: model || "claude-haiku-4-5-20251001", max_tokens: maxTokens, temperature, system, messages }),
+    body: JSON.stringify(body),
   });
   if (r.error) return r;
   const data = await r.res.json();
@@ -95,8 +97,21 @@ async function callOllama(model, messages, system, baseUrl) {
 }
 
 async function dispatch(params, system, maxTokens, temperature) {
+  if (!params || typeof params !== "object") return { error: "Invalid params" };
   const { apiKey, provider, model, messages, prompt, baseUrl } = params;
-  const msgs = messages || (prompt ? [{ role: "user", content: prompt }] : []);
+
+  // Build message list — at least one message required
+  const msgs = Array.isArray(messages) && messages.length > 0
+    ? messages
+    : (typeof prompt === "string" && prompt.trim() ? [{ role: "user", content: prompt }] : []);
+  if (msgs.length === 0) return { error: "No messages provided" };
+
+  // Validate each message has role and string content
+  for (const m of msgs) {
+    if (!m || typeof m.role !== "string" || typeof m.content !== "string") {
+      return { error: "Invalid message format" };
+    }
+  }
 
   if (!apiKey && provider !== "ollama") return { error: "No API key configured" };
 

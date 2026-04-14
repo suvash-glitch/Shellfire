@@ -50,7 +50,8 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
-  // Kill all PTYs and clean up socket on full quit
-  for (const [, p] of ptys) p.kill();
+  // Kill all PTYs, clean up socket, clear update interval
+  for (const [, p] of ptys) { try { p.kill(); } catch {} }
   socketServer.cleanup();
+  windowManager.cleanup();
 });

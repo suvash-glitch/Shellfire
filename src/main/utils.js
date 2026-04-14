@@ -34,16 +34,24 @@ function execFileAsync(cmd, args, opts = {}) {
 // INPUT VALIDATION
 // ============================================================
 
+// Pre-computed allowed prefixes (with trailing sep to prevent /Users/foohack attacks)
+const _home = os.homedir();
+const _tmp = os.tmpdir();
+const _allowed = [_home, _tmp, "/tmp"].map(d => d.endsWith(path.sep) ? d : d + path.sep);
+
+function _inAllowedRoot(resolved) {
+  // Allow exact match to root itself (e.g. homedir exactly) or anything under it
+  return [_home, _tmp, "/tmp"].some(d => resolved === d || resolved.startsWith(d + path.sep));
+}
+
 function sanitizePath(p) {
   if (typeof p !== "string") return null;
   if (p.includes("\0")) return null;
-  const home = os.homedir();
   let expanded = p;
-  if (expanded === "~") expanded = home;
-  else if (expanded.startsWith("~/")) expanded = path.join(home, expanded.slice(2));
+  if (expanded === "~") expanded = _home;
+  else if (expanded.startsWith("~/")) expanded = path.join(_home, expanded.slice(2));
   const resolved = path.resolve(expanded);
-  const tmp = os.tmpdir();
-  if (!resolved.startsWith(home) && !resolved.startsWith(tmp) && !resolved.startsWith("/tmp")) return null;
+  if (!_inAllowedRoot(resolved)) return null;
   try { if (!fs.statSync(resolved).isDirectory()) return null; } catch { return null; }
   return resolved;
 }
@@ -73,13 +81,11 @@ function isValidPort(p) {
 function sanitizeFilePath(p) {
   if (typeof p !== "string") return null;
   if (p.includes("\0")) return null;
-  const home = os.homedir();
   let expanded = p;
-  if (expanded === "~") expanded = home;
-  else if (expanded.startsWith("~/")) expanded = path.join(home, expanded.slice(2));
+  if (expanded === "~") expanded = _home;
+  else if (expanded.startsWith("~/")) expanded = path.join(_home, expanded.slice(2));
   const resolved = path.resolve(expanded);
-  const tmp = os.tmpdir();
-  if (!resolved.startsWith(home) && !resolved.startsWith(tmp) && !resolved.startsWith("/tmp")) return null;
+  if (!_inAllowedRoot(resolved)) return null;
   return resolved;
 }
 

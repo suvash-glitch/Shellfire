@@ -116,7 +116,12 @@ function registerHandlers() {
   ipcMain.on("terminal-kill", (_, id) => {
     if (typeof id !== "number") return;
     const p = ptys.get(id);
-    if (p) { p.kill(); ptys.delete(id); }
+    if (!p) return;
+    // Clean up maps immediately — onExit will also attempt deletes (no-op at that point)
+    ptys.delete(id);
+    ptyBuffers.delete(id);
+    ptyMeta.delete(id);
+    try { p.kill(); } catch {}
   });
 
   ipcMain.on("terminal-broadcast", (_, ids, data) => {

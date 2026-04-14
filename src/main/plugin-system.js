@@ -18,7 +18,9 @@ const REGISTRY_URL = "https://raw.githubusercontent.com/suvash-glitch/Shellfire/
 const REGISTRY_TTL = 5 * 60 * 1000; // 5 minutes
 
 const VALID_TYPES = new Set(["theme", "command", "statusbar", "extension"]);
-const SAFE_NAME = /^[a-zA-Z0-9._-]+$/;
+// Allowlist for plugin IDs: lowercase alphanumeric, hyphens, underscores, dots
+// No slashes, no dots-only sequences, no leading/trailing hyphens
+const SAFE_PLUGIN_ID = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 
 let _registryCache = null;
 let _registryCacheTime = 0;
@@ -29,9 +31,20 @@ function ensurePluginsDir() {
   try { fs.mkdirSync(PLUGINS_DIR, { recursive: true }); } catch {}
 }
 
-function validatePluginId(id) {
-  return typeof id === "string" && id.length > 0 && !id.includes("..") && !id.includes("/") && !id.includes("\\");
+/**
+ * Validates a plugin id and resolves its destination path.
+ * Returns the resolved path if valid and contained within PLUGINS_DIR, null otherwise.
+ */
+function resolvePluginDest(id) {
+  if (typeof id !== "string" || !SAFE_PLUGIN_ID.test(id)) return null;
+  const dest = path.resolve(PLUGINS_DIR, id);
+  // Ensure the resolved path is strictly inside PLUGINS_DIR (guards against symlink attacks)
+  if (!dest.startsWith(PLUGINS_DIR + path.sep) && dest !== PLUGINS_DIR) return null;
+  return dest;
 }
+
+// Legacy alias used in a few places
+function validatePluginId(id) { return resolvePluginDest(id) !== null; }
 
 function loadPlugins() {
   ensurePluginsDir();
@@ -116,8 +129,8 @@ function registerHandlers() {
 
   // Install from marketplace: download individual files or copy from local registry
   ipcMain.handle("install-from-registry", async (_, { id, files, downloadUrl }) => {
-    if (!validatePluginId(id)) return { error: "Invalid plugin id" };
-    const dest = path.join(PLUGINS_DIR, id);
+    const dest = resolvePluginDest(id);
+    if (!dest) return { error: "Invalid plugin id" };
     try {
       fs.mkdirSync(dest, { recursive: true });
       let downloaded = false;
@@ -148,7 +161,8 @@ function registerHandlers() {
 
   // Install from bundled examples / registry dir
   ipcMain.handle("install-plugin", (_, pluginDir) => {
-    if (!validatePluginId(pluginDir)) return { error: "Invalid plugin name" };
+    const dest = resolvePluginDest(pluginDir);
+    if (!dest) return { error: "Invalid plugin name" };
     const bases = [
       path.join(__dirname, "..", "..", "registry", "plugins"),
       path.join(__dirname, "..", "..", "examples", "plugins"),
@@ -157,7 +171,7 @@ function registerHandlers() {
       const src = path.join(base, pluginDir);
       if (!fs.existsSync(src)) continue;
       try {
-        fs.cpSync(src, path.join(PLUGINS_DIR, pluginDir), { recursive: true });
+        fs.cpSync(src, dest, { recursive: true });
         return { ok: true };
       } catch (e) { return { error: e.message }; }
     }
@@ -165,8 +179,8 @@ function registerHandlers() {
   });
 
   ipcMain.handle("uninstall-plugin", (_, pluginDir) => {
-    if (!validatePluginId(pluginDir)) return { error: "Invalid plugin name" };
-    const dest = path.join(PLUGINS_DIR, pluginDir);
+    const dest = resolvePluginDest(pluginDir);
+    if (!dest) return { error: "Invalid plugin name" };
     if (!fs.existsSync(dest)) return { error: "Plugin not found" };
     try { fs.rmSync(dest, { recursive: true, force: true }); return { ok: true }; }
     catch (e) { return { error: e.message }; }
@@ -183,7 +197,7 @@ function registerHandlers() {
 
   // Download .termext from URL and install
   ipcMain.handle("download-and-install-termext", async (_, { url, id }) => {
-    if (typeof url !== "string" || !validatePluginId(id)) return { error: "Invalid parameters" };
+    if (typeof url !== "string" || !resolvePluginDest(id)) return { error: "Invalid parameters" };
     const tmpFile = path.join(app.getPath("temp"), `${id}-${Date.now()}.termext`);
     try {
       const res = await electronNet.fetch(url, { method: "GET" });

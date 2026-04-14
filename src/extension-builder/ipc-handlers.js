@@ -116,7 +116,9 @@ function registerHandlers() {
     if (typeof filePath !== "string" || filePath.includes("\0")) return { error: "Invalid path" };
     const resolved = path.resolve(filePath);
     const home = os.homedir();
-    if (!resolved.startsWith(home) && !resolved.startsWith(os.tmpdir()) && !resolved.startsWith("/tmp")) {
+    const tmp = os.tmpdir();
+    const inAllowed = [home, tmp, "/tmp"].some(d => resolved === d || resolved.startsWith(d + path.sep));
+    if (!inAllowed) {
       return { error: "Access denied: path outside allowed directories" };
     }
     try {

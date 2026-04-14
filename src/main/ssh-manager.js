@@ -78,28 +78,32 @@ function registerHandlers() {
 
     const { env, askpassScript } = buildSshEnv(password);
 
+    // Guard against double-cleanup if both callback path and catch path fire
+    let cleaned = false;
+    function doCleanup() { if (!cleaned) { cleaned = true; cleanupAskpass(askpassScript); } }
+
     try {
       const result = await new Promise((resolve, reject) => {
         execFile("ssh", sshArgs, { encoding: "utf8", timeout: 20000, env }, (err, stdout, stderr) => {
-          cleanupAskpass(askpassScript);
+          doCleanup();
           if (stdout?.trim()) {
             try { return resolve(JSON.parse(stdout.trim())); } catch {}
           }
           if (err) {
-            const msg = stderr || err.message;
+            const msg = (stderr || err.message || "").trim();
             if (msg.includes("Permission denied")) return reject(new Error("Authentication failed. Check your username and password."));
             if (msg.includes("Connection refused")) return reject(new Error("Connection refused. Is SSH running on the remote?"));
             if (msg.includes("timed out")) return reject(new Error("Connection timed out."));
             if (msg.includes("Could not resolve")) return reject(new Error("Could not resolve hostname: " + host));
             if (msg.includes("node: command not found") || msg.includes("node: not found")) return reject(new Error("Node.js is not installed on the remote host."));
-            return reject(new Error(msg.trim() || "SSH connection failed"));
+            return reject(new Error(msg || "SSH connection failed"));
           }
           resolve({});
         });
       });
       return result;
     } catch (err) {
-      cleanupAskpass(askpassScript);
+      doCleanup();
       return { error: err.message };
     }
   });
