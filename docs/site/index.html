@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Shellfire Docs</title>
+<meta name="description" content="Complete documentation for Shellfire — AI-powered terminal multiplexer. Basics, extension API, internal architecture, and more."/>
+<link rel="stylesheet" href="styles.css"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>"/>
+</head>
+<body>
+
+<!-- ── Top Header ───────────────────────────────────────────── -->
+<header id="header">
+  <button id="menu-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+  <a class="logo" href="#" onclick="navigate('overview')">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 2C8 8 6 12 10 16c-2-1-3-3-3-5C5 17 8 22 14 26c6-4 9-9 7-15-1 2-3 4-5 4 4-4 3-9-2-13z" fill="#ff6b35"/>
+    </svg>
+    <span>Shell<span>fire</span></span>
+  </a>
+  <div id="search-wrap">
+    <span id="search-icon">⌕</span>
+    <input id="search" type="search" placeholder="Search docs…" autocomplete="off" oninput="filterNav(this.value)" onkeydown="searchKeydown(event)"/>
+  </div>
+  <nav>
+    <a href="https://github.com/suvash-glitch/Shellfire" target="_blank">GitHub</a>
+    <a href="https://github.com/suvash-glitch/Shellfire/releases" target="_blank">Releases</a>
+    <a class="gh-btn" href="https://github.com/suvash-glitch/Shellfire" target="_blank">⭐ Star</a>
+  </nav>
+</header>
+
+<!-- ── Layout ───────────────────────────────────────────────── -->
+<div id="layout">
+
+  <!-- Sidebar -->
+  <nav id="sidebar" aria-label="Documentation navigation"></nav>
+
+  <!-- Content -->
+  <main id="content" role="main"></main>
+
+</div>
+
+<!-- Footer -->
+<footer id="footer">
+  <span>Shellfire v3 — <a href="https://github.com/suvash-glitch/Shellfire/blob/main/LICENSE">MIT License</a></span>
+  <span style="margin-left:auto;color:var(--text3)">Built with ♥ and Claude</span>
+</footer>
+
+<!-- Scripts -->
+<script src="nav.js"></script>
+<script src="content-intro.js"></script>
+<script src="content-ext.js"></script>
+<script>
+"use strict";
+
+// ── Merge content ────────────────────────────────────────────
+const CONTENT = { ...CONTENT_INTRO, ...CONTENT_EXT };
+
+// ── State ────────────────────────────────────────────────────
+let currentSection = null;
+
+// ── Build sidebar ─────────────────────────────────────────────
+function buildSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.innerHTML = '';
+  for (const group of NAV) {
+    const label = document.createElement('div');
+    label.className = 'nav-group-label';
+    label.textContent = group.group;
+    sidebar.appendChild(label);
+    for (const item of group.items) {
+      const a = document.createElement('a');
+      a.className = 'nav-item';
+      a.textContent = item.label;
+      a.href = '#' + item.id;
+      a.dataset.id = item.id;
+      a.onclick = (e) => { e.preventDefault(); navigate(item.id); };
+      sidebar.appendChild(a);
+    }
+  }
+}
+
+// ── Build content areas ───────────────────────────────────────
+function buildContent() {
+  const main = document.getElementById('content');
+  main.innerHTML = '';
+  for (const group of NAV) {
+    for (const item of group.items) {
+      const section = document.createElement('section');
+      section.id = 'section-' + item.id;
+      section.className = 'doc-section';
+      section.innerHTML = CONTENT[item.id] || `<h1>${item.label}</h1><p>Coming soon.</p>`;
+      main.appendChild(section);
+    }
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function navigate(id, pushState = true) {
+  // Deactivate old
+  if (currentSection) {
+    document.getElementById('section-' + currentSection)?.classList.remove('active');
+    document.querySelector(`.nav-item[data-id="${currentSection}"]`)?.classList.remove('active');
+  }
+
+  // Activate new
+  const section = document.getElementById('section-' + id);
+  if (!section) return;
+  section.classList.add('active');
+  const navItem = document.querySelector(`.nav-item[data-id="${id}"]`);
+  navItem?.classList.add('active');
+  navItem?.scrollIntoView({ block: 'nearest' });
+
+  currentSection = id;
+  document.getElementById('content').scrollTop = 0;
+  window.scrollTo(0, 0);
+
+  if (pushState) {
+    history.pushState({ id }, '', '#' + id);
+  }
+
+  // Wire up copy buttons
+  setTimeout(wireCopyButtons, 50);
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+// ── Copy buttons ──────────────────────────────────────────────
+function wireCopyButtons() {
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.onclick = () => {
+      const pre = btn.closest('.code-block').querySelector('pre');
+      navigator.clipboard.writeText(pre.textContent).then(() => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      });
+    };
+  });
+}
+
+// ── Search / filter ───────────────────────────────────────────
+function filterNav(q) {
+  const term = q.toLowerCase().trim();
+  document.querySelectorAll('.nav-item').forEach(item => {
+    if (!term || item.textContent.toLowerCase().includes(term)) {
+      item.style.display = '';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+  document.querySelectorAll('.nav-group-label').forEach(label => {
+    let next = label.nextElementSibling;
+    let hasVisible = false;
+    while (next && !next.classList.contains('nav-group-label')) {
+      if (next.style.display !== 'none') hasVisible = true;
+      next = next.nextElementSibling;
+    }
+    label.style.display = hasVisible ? '' : (term ? 'none' : '');
+  });
+}
+
+function searchKeydown(e) {
+  if (e.key === 'Enter') {
+    const first = document.querySelector('.nav-item:not([style*="display: none"])');
+    if (first) { navigate(first.dataset.id); document.getElementById('search').value = ''; filterNav(''); }
+  }
+  if (e.key === 'Escape') { document.getElementById('search').value = ''; filterNav(''); }
+}
+
+// ── Mobile sidebar toggle ─────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ── Popstate ─────────────────────────────────────────────────
+window.addEventListener('popstate', (e) => {
+  const id = e.state?.id || location.hash.slice(1) || NAV[0].items[0].id;
+  navigate(id, false);
+});
+
+// ── Init ─────────────────────────────────────────────────────
+buildSidebar();
+buildContent();
+
+const initId = location.hash.slice(1) || 'overview';
+navigate(initId, false);
+
+// Keyboard shortcut: / to focus search
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    document.getElementById('search').focus();
+  }
+});
+</script>
+</body>
+</html>
