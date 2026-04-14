@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shellfire Extension Builder</title>
+  <style>
+    /* ── Reset ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Variables ──────────────────────────────────────────── */
+    :root {
+      --bg:          #0f0f0f;
+      --bg2:         #161616;
+      --bg3:         #1e1e1e;
+      --bg4:         #252525;
+      --border:      #2a2a2a;
+      --text:        #e0e0e0;
+      --text2:       #888;
+      --accent:      #ff6b35;
+      --accent2:     #ff8c5a;
+      --green:       #4caf50;
+      --blue:        #58a6ff;
+      --yellow:      #d29922;
+      --red:         #f85149;
+      --radius:      6px;
+      --mono:        "SF Mono", "Menlo", "Monaco", "Courier New", monospace;
+      --sans:        -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    #app { display: grid; grid-template-rows: 48px 1fr; height: 100vh; overflow: hidden; }
+
+    /* ── Toolbar ─────────────────────────────────────────────── */
+    #toolbar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px; background: var(--bg2); border-bottom: 1px solid var(--border);
+    }
+    #toolbar .logo { font-size: 16px; font-weight: 700; color: var(--accent); margin-right: 8px; }
+    #toolbar button {
+      padding: 5px 12px; border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--bg3); color: var(--text); cursor: pointer; font-size: 12px;
+      transition: background 0.15s;
+    }
+    #toolbar button:hover { background: var(--bg4); }
+    #toolbar button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    #toolbar button.primary:hover { background: var(--accent2); }
+    #toolbar .spacer { flex: 1; }
+    #toolbar .status { color: var(--text2); font-size: 12px; }
+
+    /* ── Main area ──────────────────────────────────────────── */
+    #main { display: grid; grid-template-columns: 220px 1fr 340px; overflow: hidden; }
+
+    /* ── File tree ──────────────────────────────────────────── */
+    #filetree {
+      background: var(--bg2); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    #filetree h3 { padding: 10px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text2); }
+    #file-list { flex: 1; overflow-y: auto; }
+    .file-item {
+      display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+      cursor: pointer; border-radius: 0; font-size: 12px; color: var(--text2);
+      transition: background 0.1s;
+    }
+    .file-item:hover { background: var(--bg3); }
+    .file-item.active { background: var(--bg4); color: var(--text); }
+    .file-item .badge { margin-left: auto; font-size: 10px; color: var(--accent); font-weight: 600; }
+    #new-file-btn { margin: 8px 12px; padding: 6px; font-size: 12px; border-radius: var(--radius); border: 1px dashed var(--border); background: transparent; color: var(--text2); cursor: pointer; text-align: center; }
+    #new-file-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Editor area ─────────────────────────────────────────── */
+    #editor-area { display: flex; flex-direction: column; overflow: hidden; }
+    #tab-bar { display: flex; align-items: center; background: var(--bg2); border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .tab { display: flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 12px; cursor: pointer; border-right: 1px solid var(--border); color: var(--text2); white-space: nowrap; }
+    .tab.active { background: var(--bg); color: var(--text); border-bottom: 2px solid var(--accent); }
+    .tab .close { opacity: 0; font-size: 10px; padding: 1px 3px; border-radius: 3px; }
+    .tab:hover .close { opacity: 1; }
+    .tab .close:hover { background: var(--border); }
+    #editor-wrap { flex: 1; position: relative; overflow: hidden; }
+    #editor { width: 100%; height: 100%; font-family: var(--mono); font-size: 13px; line-height: 1.6; border: none; outline: none; resize: none; background: var(--bg); color: var(--text); padding: 16px; tab-size: 2; }
+    #editor::selection { background: #264f78; }
+
+    /* ── Right panel ─────────────────────────────────────────── */
+    #right-panel { display: flex; flex-direction: column; background: var(--bg2); border-left: 1px solid var(--border); overflow: hidden; }
+    #panel-tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .panel-tab { flex: 1; text-align: center; padding: 9px 4px; font-size: 12px; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; }
+    .panel-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .panel-pane { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .panel-pane.active { display: flex; }
+
+    /* AI pane */
+    #ai-pane { padding: 0; }
+    #ai-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .ai-msg { border-radius: var(--radius); padding: 10px 12px; font-size: 12px; line-height: 1.5; }
+    .ai-msg.user { background: var(--bg3); align-self: flex-end; max-width: 90%; }
+    .ai-msg.assistant { background: var(--bg4); border: 1px solid var(--border); }
+    .ai-msg pre { background: #000; border-radius: 4px; padding: 8px; overflow-x: auto; margin-top: 6px; }
+    .ai-msg code { font-family: var(--mono); font-size: 11px; }
+    #ai-input-wrap { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--border); }
+    #ai-input { flex: 1; padding: 7px 10px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 12px; resize: none; height: 60px; font-family: var(--sans); }
+    #ai-input:focus { outline: none; border-color: var(--accent); }
+    #ai-send { align-self: flex-end; padding: 7px 14px; border-radius: var(--radius); border: none; background: var(--accent); color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
+    #ai-send:hover { background: var(--accent2); }
+    #ai-send:disabled { opacity: .5; cursor: default; }
+
+    /* Docs pane */
+    #docs-pane { padding: 0; }
+    #docs-content { flex: 1; overflow-y: auto; padding: 14px 16px; font-size: 12px; line-height: 1.7; }
+    #docs-content h1 { font-size: 16px; margin-bottom: 12px; }
+    #docs-content h2 { font-size: 13px; margin: 18px 0 6px; color: var(--accent); }
+    #docs-content h3 { font-size: 12px; margin: 14px 0 4px; color: var(--blue); }
+    #docs-content code { font-family: var(--mono); font-size: 11px; background: var(--bg3); padding: 1px 4px; border-radius: 3px; }
+    #docs-content pre { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; overflow-x: auto; margin: 8px 0; }
+    #docs-content pre code { background: none; padding: 0; }
+    #docs-content table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 11px; }
+    #docs-content th, #docs-content td { border: 1px solid var(--border); padding: 5px 8px; text-align: left; }
+    #docs-content th { background: var(--bg3); }
+    #docs-content a { color: var(--blue); }
+
+    /* Manifest pane */
+    #manifest-pane { padding: 14px; overflow-y: auto; }
+    .field-row { margin-bottom: 12px; }
+    .field-row label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .field-row input, .field-row select, .field-row textarea {
+      width: 100%; padding: 6px 10px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 12px;
+    }
+    .field-row input:focus, .field-row select:focus { outline: none; border-color: var(--accent); }
+    .field-row select option { background: var(--bg3); }
+    #apply-manifest { margin-top: 4px; padding: 7px 14px; border-radius: var(--radius); border: none; background: var(--accent); color: #fff; cursor: pointer; font-size: 12px; width: 100%; }
+
+    /* ── Toast ───────────────────────────────────────────────── */
+    #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bg4); border: 1px solid var(--border); color: var(--text); padding: 8px 16px; border-radius: 20px; font-size: 12px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 999; }
+    #toast.show { opacity: 1; }
+    #toast.ok { border-color: var(--green); color: var(--green); }
+    #toast.err { border-color: var(--red); color: var(--red); }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <span class="logo">🔥 Extension Builder</span>
+    <button onclick="App.newProject()">New</button>
+    <button onclick="App.openFolder()">Open</button>
+    <button onclick="App.saveAll()">Save All</button>
+    <button onclick="App.installToShellfire()" title="Install directly into Shellfire">Install</button>
+    <button class="primary" onclick="App.exportPackage()">Export .termext</button>
+    <span class="spacer"></span>
+    <span id="status-label" class="status">Ready</span>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- File tree -->
+    <div id="filetree">
+      <h3>Files</h3>
+      <div id="file-list"></div>
+      <button id="new-file-btn" onclick="App.addFile()">+ New File</button>
+    </div>
+
+    <!-- Editor -->
+    <div id="editor-area">
+      <div id="tab-bar"></div>
+      <div id="editor-wrap">
+        <textarea id="editor" spellcheck="false" placeholder="// Start coding your extension…"></textarea>
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div id="right-panel">
+      <div id="panel-tabs">
+        <div class="panel-tab active" onclick="App.switchPanel('ai', this)">AI Assistant</div>
+        <div class="panel-tab" onclick="App.switchPanel('manifest', this)">Manifest</div>
+        <div class="panel-tab" onclick="App.switchPanel('docs', this)">API Docs</div>
+      </div>
+
+      <!-- AI Assistant pane -->
+      <div id="ai-pane" class="panel-pane active">
+        <div id="ai-messages">
+          <div class="ai-msg assistant">
+            <strong>Shellfire AI</strong><br>
+            Describe what you want to build and I'll generate the code. I know the full Extension API.<br><br>
+            <em>Examples:</em>
+            <ul style="margin-top:6px;padding-left:16px;font-size:11px;color:#888">
+              <li>"Create an extension that shows git branch in the status bar"</li>
+              <li>"Add a button that runs npm test in the active pane"</li>
+              <li>"Generate a dark theme inspired by Tokyo Night"</li>
+              <li>"Add a right-click menu to copy the file path from selected text"</li>
+            </ul>
+          </div>
+        </div>
+        <div id="ai-input-wrap">
+          <textarea id="ai-input" placeholder="Describe what to build or ask for changes…" onkeydown="App.aiKeydown(event)"></textarea>
+          <button id="ai-send" onclick="App.sendAI()">Send</button>
+        </div>
+      </div>
+
+      <!-- Manifest editor pane -->
+      <div id="manifest-pane" class="panel-pane">
+        <div class="field-row"><label>Name (id)</label><input id="m-name" type="text" placeholder="my-extension" /></div>
+        <div class="field-row"><label>Display Name</label><input id="m-displayName" type="text" placeholder="My Extension" /></div>
+        <div class="field-row"><label>Version</label><input id="m-version" type="text" placeholder="1.0.0" /></div>
+        <div class="field-row"><label>Description</label><textarea id="m-description" rows="2" style="resize:none"></textarea></div>
+        <div class="field-row"><label>Author</label><input id="m-author" type="text" /></div>
+        <div class="field-row">
+          <label>Type</label>
+          <select id="m-type">
+            <option value="extension">extension</option>
+            <option value="theme">theme</option>
+            <option value="command">command</option>
+            <option value="statusbar">statusbar</option>
+          </select>
+        </div>
+        <div class="field-row"><label>Main entry</label><input id="m-main" type="text" placeholder="index.js" /></div>
+        <button id="apply-manifest" onclick="App.applyManifest()">Apply to plugin.json</button>
+      </div>
+
+      <!-- API Docs pane -->
+      <div id="docs-pane" class="panel-pane">
+        <div id="docs-content">Loading docs…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

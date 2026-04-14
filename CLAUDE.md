@@ -1,10 +1,12 @@
-# CLAUDE.md
+# CLAUDE.md — Shellfire v3
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
 
 ## What This Is
 
-Shellfire is an AI-powered terminal multiplexer built with Electron. It provides split panes, tabs, AI autocomplete (Claude), SSH bookmarks, Docker management, a plugin system with 100+ extensions, and a CLI — all in a single desktop app for macOS, Windows, and Linux.
+Shellfire is an AI-powered terminal multiplexer built with Electron. It provides split panes, tabs, AI autocomplete (Claude / OpenAI / Gemini / Ollama), SSH remote sessions, Docker management, a plugin/extension system, a visual Extension Builder with AI assistance, and a CLI + MCP server for programmatic control.
+
+---
 
 ## Commands
 
@@ -19,49 +21,109 @@ npm run build:win     # Build Windows distributable (.exe, .zip)
 npm run build:linux   # Build Linux distributable (.AppImage, .deb)
 ```
 
-Run a single test file:
-```bash
-node --test test/main.test.js
-```
+---
 
 ## Architecture
 
-The app follows Electron's two-process model with strict context isolation:
+Shellfire follows Electron's two-process model with strict context isolation.
 
-- **`main.js`** — Main process. Manages PTY lifecycles (node-pty), all IPC handlers, a Unix socket server for CLI communication (`~/.shellfire/shellfire.sock`), file I/O, git/docker/ssh/cron integrations, plugin loading, and the marketplace.
+### Main Process (`main.js` + `src/main/`)
 
-- **`preload.js`** — Context bridge. Exposes 100+ safe IPC methods to the renderer via `contextBridge.exposeInMainWorld`. All renderer↔main communication goes through this bridge.
+`main.js` is a thin entry point (~55 lines). All logic is in focused modules:
 
-- **`renderer.js`** — Renderer process. All DOM/UI logic: pane/tab/split management, xterm.js terminal instances (WebGL-accelerated), command palette, settings, IDE mode with sidebar, theme switching, and the plugin API (`window._termExt`).
+| Module | Responsibility |
+|--------|---------------|
+| `src/main/state.js` | Shared state: PTY maps, window reference, `sendToRenderer` |
+| `src/main/utils.js` | `log`, `execFileAsync`, `sanitizePath`, `readJSON`, `writeJSON`, validators |
+| `src/main/pty-manager.js` | PTY lifecycle: create, resize, input, kill, cwd/process query |
+| `src/main/socket-server.js` | Unix socket server for CLI & MCP (`~/.shellfire/*.sock`) |
+| `src/main/storage.js` | All persistent data IPC handlers (session, config, settings, secrets…) |
+| `src/main/ai-service.js` | `ai-chat` and `ai-complete` IPC handlers (4 providers) |
+| `src/main/ssh-manager.js` | SSH remote session listing and local pane creation |
+| `src/main/system-handlers.js` | Cron, Docker, ports, git, system stats, file dialogs, pipeline runner |
+| `src/main/plugin-system.js` | Plugin load/install/uninstall, marketplace registry, .termext packaging |
+| `src/main/window-manager.js` | BrowserWindow creation, auto-updater, zen mode, zoom, window controls |
 
-- **`index.html`** — Single-page app shell with modals and overlays.
+### Extension Builder (`src/extension-builder/`)
 
-- **`styles.css`** — All styling. Themes are implemented via CSS custom properties (6 built-in: Dark, Solarized, Dracula, Monokai, Nord, Light).
+A dedicated Electron BrowserWindow for authoring extensions:
 
-### Plugin System
+| File | Role |
+|------|------|
+| `window.js` | Opens/focuses the builder window; registers `open-extension-builder` IPC |
+| `preload.js` | Context bridge — exposes `window.builder.*` to the UI |
+| `ipc-handlers.js` | File I/O, AI generation, install, export handlers |
+| `index.html` | Builder UI shell |
+| `renderer.js` | Editor, file tree, AI chat, manifest form, tab management |
 
-Plugins live in the user's data directory and are hot-loaded at runtime. Each plugin is a folder with `plugin.json` (metadata) + `index.js` (code). Types: `theme`, `command`, `extension`, `statusbar`. The plugin API is exposed at `window._termExt` with hooks (`terminalInput`, `errorDetected`, `contextMenu`) and UI injection methods (`addToolbarButton`, `addSidePanel`, `registerCommand`).
+Open via `Cmd+Shift+E` or **Extensions → Extension Builder**.
 
-- `registry/plugins.json` — Central metadata for all 100+ official plugins
-- `registry/plugins/` — Official plugin source code
-- `registry/packages/` — Pre-built `.termext` zip bundles
-- `examples/plugins/` — Plugin starter templates
+### Renderer (`renderer.js`)
 
-### CLI
+> **v3 refactor in progress** — currently a single file (~7k lines). Planned split into `src/renderer/` modules: `pane-manager`, `layout-manager`, `theme-manager`, `command-palette`, `terminal-manager`, `extension-runtime`.
 
-`bin/shellfire-cli.js` communicates with the running app over a Unix socket. Commands: `list`, `new`, `attach`, `send`, `kill`, `rename`, `remote`. Zsh completions in `bin/_shellfire`.
+### Preload (`preload.js`)
+
+Context bridge. Exposes `window.shellfire.*` IPC methods. Does not change between v2 and v3.
+
+### Extension System
+
+Extensions live in `~/.shellfire/plugins/`, each as a folder with:
+- `plugin.json` — manifest (name, type, main, permissions)
+- `index.js` (or custom `main`) — code, exports `{ activate(api), deactivate() }`
+
+**Extension API** is documented in `docs/extension-api.md`.
+
+Types: `extension`, `theme`, `command`, `statusbar`.
+
+### MCP Server (`mcp/shellfire-mcp.js`)
+
+Exposes Shellfire sessions to Claude via MCP / JSON-RPC 2.0 over stdio.
+Tools: `shellfire_list`, `shellfire_read`, `shellfire_send`, `shellfire_new`, `shellfire_kill`, `shellfire_rename`.
+
+### CLI (`bin/shellfire-cli.js`)
+
+Communicates with the running app over the Unix socket.
+Commands: `list`, `new`, `attach`, `send`, `kill`, `rename`, `remote`.
+
+---
 
 ## Code Style
 
 - 2-space indentation, double quotes, always semicolons
 - `const` by default, `let` when needed, never `var`
 - `function` declarations in main process; arrow functions fine in renderer
-- `// ====` section dividers separate major feature blocks in large files
 - camelCase for variables/functions, PascalCase for classes
-- Commit messages: prefix with `Add`, `Fix`, `Update`, `Remove`, `Refactor`, `Docs`, `Test`
+- Each `src/main/` module: `registerHandlers()` export wires up IPC, plus named exports for shared logic
+- Commit message prefixes: `Add`, `Fix`, `Update`, `Remove`, `Refactor`, `Docs`, `Test`
+
+---
+
+## Key Data Paths
+
+All user data lives in `app.getPath("userData")` (e.g. `~/Library/Application Support/shellfire/`):
+
+| File | Contents |
+|------|----------|
+| `session.json` | Pane layout + restore commands |
+| `settings.json` | All user preferences |
+| `secrets.json` | AES-256-CBC encrypted secrets |
+| `plugins/` (in `~/.shellfire/`) | Installed extensions |
+| `~/.shellfire/*.sock` | Unix socket for CLI/MCP |
+
+---
 
 ## Build Prerequisites
 
 - Node.js 18+, npm 9+
 - Python 3.x (for node-pty native compilation)
 - Xcode Command Line Tools (macOS) or equivalent C++ build tools
+
+---
+
+## Extension Development
+
+See `docs/extension-api.md` for the full Extension API reference.
+
+Use the visual Extension Builder (`Cmd+Shift+E`) for AI-assisted development.
+Example extensions: `examples/plugins/`.
