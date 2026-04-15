@@ -9,8 +9,8 @@
 <style>
 /* ── Tokens ─────────────────────────────────────────────────── */
 :root {
-  --bg:       #0a0a0b;
-  --panel:    #111113;
+  --bg:       #09090b;
+  --panel:    #0f0f12;
   --raised:   #18181b;
   --hover:    #1e1e22;
   --border:   #27272a;
@@ -25,288 +25,309 @@
   --green-bg: rgba(34,197,94,.09);
   --red:      #ef4444;
   --red-bg:   rgba(239,68,68,.09);
+  --amber:    #f59e0b;
   --blue:     #3b82f6;
-  --r:        7px;
-  --font:     -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-  --mono:     "SF Mono", ui-monospace, "Menlo", monospace;
-  --header:   48px;
-  --sidebar:  220px;
+  --r:        6px;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  --mono: "SF Mono", ui-monospace, "Menlo", monospace;
+  --header: 46px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; overflow: hidden; -webkit-font-smoothing: antialiased; }
-button { font-family: var(--font); cursor: pointer; }
-::selection { background: rgba(249,115,22,.25); }
+button { font-family: var(--font); cursor: pointer; font-size: 12.5px; }
+::selection { background: rgba(249,115,22,.22); }
+a { color: var(--flame); }
 
 /* ── Header ─────────────────────────────────────────────────── */
 #header {
   height: var(--header);
-  background: rgba(10,10,11,.92);
-  backdrop-filter: blur(12px);
+  background: rgba(9,9,11,.92); backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 0;
+  display: flex; align-items: center;
   -webkit-app-region: drag;
-  padding-left: 80px; /* macOS traffic lights */
-  position: relative; z-index: 100;
-  flex-shrink: 0;
+  flex-shrink: 0; z-index: 100; position: relative;
+  padding-left: 76px;
 }
-.hdr-logo {
+.hlogo {
   display: flex; align-items: center; gap: 8px;
   font-size: 14px; font-weight: 700; letter-spacing: -.02em;
-  color: var(--text); padding: 0 18px; flex-shrink: 0;
+  color: var(--text); padding: 0 16px;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
 }
-.hdr-logo svg { width: 20px; height: 20px; }
-.hdr-logo .fire { color: var(--flame); }
-.hdr-divider { width: 1px; background: var(--border); height: 28px; flex-shrink: 0; }
-.hdr-tabs { display: flex; gap: 2px; padding: 0 12px; -webkit-app-region: no-drag; }
-.hdr-tab {
-  padding: 5px 14px; border-radius: var(--r); font-size: 12.5px;
-  color: var(--text2); border: none; background: transparent;
-  transition: color .12s, background .12s;
-}
-.hdr-tab:hover { color: var(--text); background: var(--hover); }
-.hdr-tab.active { color: var(--flame); background: var(--flame-bg); }
+.hlogo svg { width: 19px; height: 19px; }
+.hlogo .fire { color: var(--flame); }
+.hdiv { width: 1px; height: 26px; background: var(--border); flex-shrink: 0; }
 
-.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 8px; padding-right: 16px; -webkit-app-region: no-drag; }
-.status-pill {
-  display: flex; align-items: center; gap: 6px;
-  padding: 4px 12px; border-radius: 20px;
-  font-size: 12px; font-weight: 500; border: 1px solid;
-  transition: all .2s;
-}
-.status-pill.connected    { background: var(--green-bg); border-color: rgba(34,197,94,.3); color: var(--green); }
-.status-pill.disconnected { background: var(--red-bg);   border-color: rgba(239,68,68,.3); color: var(--red); }
-.status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.hdr-btn {
-  padding: 5px 14px; border-radius: var(--r); font-size: 12.5px;
-  border: 1px solid var(--border2); background: var(--raised); color: var(--text);
-  transition: border-color .15s, background .15s;
-}
-.hdr-btn:hover { border-color: var(--flame); background: var(--hover); }
-.hdr-btn.primary { background: var(--flame); border-color: var(--flame); color: #fff; font-weight: 600; }
-.hdr-btn.primary:hover { background: #ea580c; }
+/* Left header group: new buttons */
+.h-left { display: flex; align-items: center; gap: 4px; padding: 0 10px; -webkit-app-region: no-drag; }
 
-/* ── Body layout ─────────────────────────────────────────────── */
+/* Center: file path */
+.h-center { flex: 1; display: flex; align-items: center; justify-content: center; -webkit-app-region: no-drag; }
+#folder-crumb { font-size: 12px; color: var(--text3); font-family: var(--mono); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Right header group */
+.h-right { display: flex; align-items: center; gap: 6px; padding: 0 14px; -webkit-app-region: no-drag; }
+
+/* Buttons */
+.hbtn {
+  padding: 4px 12px; border-radius: var(--r);
+  border: 1px solid var(--border); background: var(--raised); color: var(--text2);
+  transition: border-color .14s, color .14s, background .14s;
+}
+.hbtn:hover { border-color: var(--border2); color: var(--text); background: var(--hover); }
+.hbtn.primary { background: var(--flame); border-color: var(--flame); color: #fff; font-weight: 600; }
+.hbtn.primary:hover { background: #ea580c; }
+.hbtn.ap-on { background: var(--green-bg); border-color: rgba(34,197,94,.3); color: var(--green); }
+.hbtn.ap-off { opacity: .45; pointer-events: none; }
+
+/* Connection pill */
+.conn-pill { display: flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid; transition: all .2s; }
+.conn-pill.on  { background: var(--green-bg); border-color: rgba(34,197,94,.3); color: var(--green); }
+.conn-pill.off { background: rgba(82,82,91,.1); border-color: rgba(82,82,91,.2); color: var(--text3); }
+.conn-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ── Body ────────────────────────────────────────────────────── */
 #body { display: flex; height: calc(100vh - var(--header)); overflow: hidden; }
 
-/* ── File sidebar ────────────────────────────────────────────── */
+/* ── Dividers ────────────────────────────────────────────────── */
+.resize-divider {
+  width: 4px; background: transparent; cursor: col-resize; flex-shrink: 0;
+  transition: background .15s;
+}
+.resize-divider:hover, .resize-divider:active { background: var(--flame); }
+
+/* ── File sidebar ─────────────────────────────────────────────── */
 #filesidebar {
-  width: var(--sidebar); flex-shrink: 0;
+  width: 220px; flex-shrink: 0;
   background: var(--panel); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; overflow: hidden;
+  min-width: 160px; max-width: 380px;
 }
-.fs-section { padding: 10px 10px 6px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; color: var(--text3); display: flex; align-items: center; justify-content: space-between; }
-.fs-section button { background: none; border: none; color: var(--text3); font-size: 15px; padding: 0 2px; transition: color .12s; }
-.fs-section button:hover { color: var(--flame); }
-.file-list { flex: 1; overflow-y: auto; }
-.file-item {
-  display: flex; align-items: center; gap: 7px;
-  padding: 5px 12px; cursor: pointer;
-  font-size: 12.5px; color: var(--text2);
-  transition: background .1s, color .1s;
-  border-left: 2px solid transparent;
-}
+.sb-section { padding: 9px 12px 5px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--text3); display: flex; align-items: center; justify-content: space-between; }
+.sb-sec-btn { background: none; border: none; color: var(--text3); font-size: 15px; padding: 0 1px; line-height: 1; transition: color .12s; }
+.sb-sec-btn:hover { color: var(--flame); }
+
+.file-list { flex: 1; overflow-y: auto; min-height: 60px; }
+.file-item { display: flex; align-items: center; gap: 7px; padding: 5px 12px; cursor: pointer; font-size: 12.5px; color: var(--text2); border-left: 2px solid transparent; transition: background .1s, color .1s; }
 .file-item:hover { background: var(--hover); color: var(--text); }
 .file-item.active { background: var(--flame-bg); color: var(--flame); border-left-color: var(--flame); }
-.file-item .ficon { font-size: 12px; flex-shrink: 0; }
-.file-item .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-item .fdirty { color: var(--flame); font-size: 8px; }
-.installed-list { overflow-y: auto; max-height: 180px; }
-.installed-item { padding: 6px 12px; font-size: 12px; color: var(--text2); border-bottom: 1px solid var(--border); }
-.installed-item .iname { font-weight: 500; color: var(--text); }
-.installed-item .itype { font-size: 10.5px; color: var(--text3); margin-top: 1px; }
+.file-item .fic { font-size: 11px; flex-shrink: 0; font-family: var(--mono); }
+.file-item .fn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item .fd { color: var(--flame); font-size: 8px; }
 
-/* ── Center: editor ──────────────────────────────────────────── */
-#editor-col {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column;
-  background: var(--bg);
-}
-#tab-bar { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; }
-.etab {
-  display: flex; align-items: center; gap: 7px;
-  padding: 0 14px; height: 36px; font-size: 12.5px;
-  color: var(--text2); border-right: 1px solid var(--border);
-  cursor: pointer; transition: background .1s, color .1s;
-  white-space: nowrap; flex-shrink: 0;
-}
+.inst-item { padding: 6px 12px; border-bottom: 1px solid var(--border); }
+.inst-item:last-child { border: none; }
+.inst-name { font-size: 12.5px; color: var(--text); font-weight: 500; }
+.inst-meta { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.inst-del { background: none; border: none; color: var(--text3); font-size: 11px; padding: 0; margin-left: auto; cursor: pointer; transition: color .12s; }
+.inst-del:hover { color: var(--red); }
+.empty-installed { padding: 8px 12px; font-size: 12px; color: var(--text3); }
+
+.sb-actions { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
+.sb-action-btn { padding: 5px 10px; border-radius: var(--r); border: 1px solid var(--border); background: var(--raised); color: var(--text2); font-size: 12px; width: 100%; text-align: left; transition: border-color .14s; }
+.sb-action-btn:hover { border-color: var(--flame); color: var(--text); }
+
+/* ── Editor ──────────────────────────────────────────────────── */
+#editor-col { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+
+#tab-bar { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; min-height: 36px; }
+#tab-bar::-webkit-scrollbar { height: 0; }
+.etab { display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 36px; font-size: 12.5px; color: var(--text2); border-right: 1px solid var(--border); cursor: pointer; transition: background .1s; white-space: nowrap; flex-shrink: 0; }
+.etab:hover { background: var(--hover); color: var(--text); }
 .etab.active { color: var(--text); background: var(--bg); border-bottom: 2px solid var(--flame); }
-.etab .close-tab { opacity: 0; font-size: 12px; padding: 2px; border-radius: 3px; background: none; border: none; color: var(--text2); }
-.etab:hover .close-tab { opacity: 1; }
-.etab .close-tab:hover { background: var(--hover); color: var(--text); }
+.etab .tico { font-family: var(--mono); font-size: 11px; }
+.etab .tname { display: flex; align-items: center; gap: 4px; }
+.etab .tdirty { color: var(--flame); font-size: 8px; }
+.etab .tclose { background: none; border: none; color: var(--text3); font-size: 12px; padding: 2px 3px; border-radius: 3px; opacity: 0; transition: opacity .1s, background .1s, color .1s; }
+.etab:hover .tclose { opacity: 1; }
+.etab .tclose:hover { background: var(--hover); color: var(--text); }
+
 #editor-wrap { flex: 1; overflow: hidden; position: relative; }
-/* ── CodeMirror base — never rely on CDN theme for these ────── */
-.CodeMirror {
-  height: 100% !important;
-  font-family: var(--mono) !important;
-  font-size: 13.5px !important;
-  line-height: 1.7 !important;
-  background: #0d0d10 !important;
-  color: #abb2bf !important;       /* ← explicit so dark bg never has black text */
-}
-.CodeMirror-scroll { padding-bottom: 24px; }
-.CodeMirror-gutters { background: #0d0d10 !important; border-right: 1px solid #222226 !important; }
+#empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 10px; color: var(--text3); }
+#empty-state .big { font-size: 40px; }
+#empty-state h2 { font-size: 16px; font-weight: 600; color: var(--text2); margin-top: 4px; }
+#empty-state p { font-size: 12.5px; color: var(--text3); }
+#empty-state .es-btns { display: flex; gap: 8px; margin-top: 8px; }
+#empty-state .es-btn { padding: 7px 16px; border-radius: var(--r); border: 1px solid var(--border2); background: var(--raised); color: var(--text2); transition: border-color .14s; }
+#empty-state .es-btn:hover { border-color: var(--flame); color: var(--text); }
+
+/* CodeMirror */
+.CodeMirror { height: 100% !important; font-family: var(--mono) !important; font-size: 13.5px !important; line-height: 1.72 !important; background: #0c0c0f !important; color: #abb2bf !important; }
+.CodeMirror-scroll { padding-bottom: 120px; }
+.CodeMirror-gutters { background: #0c0c0f !important; border-right: 1px solid #222226 !important; min-width: 44px; }
 .CodeMirror-linenumber { color: #3f3f46 !important; padding: 0 14px !important; }
-.CodeMirror-cursor { border-left: 2px solid var(--flame) !important; }
-.CodeMirror-selected, .CodeMirror-line ::selection { background: rgba(249,115,22,.18) !important; }
-.CodeMirror-matchingbracket { color: var(--flame) !important; font-weight: bold; outline: 1px solid rgba(249,115,22,.4); }
-.CodeMirror-activeline-background { background: rgba(255,255,255,.03) !important; }
-.CodeMirror-focused .CodeMirror-selected { background: rgba(249,115,22,.18) !important; }
-/* Inline one-dark token colors (fallback if CDN misses) */
-.cm-s-one-dark.CodeMirror { background: #0d0d10 !important; color: #abb2bf !important; }
-.cm-s-one-dark .cm-keyword     { color: #c678dd !important; }
-.cm-s-one-dark .cm-atom        { color: #d19a66 !important; }
-.cm-s-one-dark .cm-number      { color: #d19a66 !important; }
-.cm-s-one-dark .cm-def         { color: #e06c75 !important; }
-.cm-s-one-dark .cm-variable    { color: #e06c75 !important; }
-.cm-s-one-dark .cm-variable-2  { color: #e5c07b !important; }
-.cm-s-one-dark .cm-variable-3  { color: #56b6c2 !important; }
-.cm-s-one-dark .cm-property    { color: #abb2bf !important; }
-.cm-s-one-dark .cm-operator    { color: #56b6c2 !important; }
-.cm-s-one-dark .cm-comment     { color: #5c6370 !important; font-style: italic !important; }
-.cm-s-one-dark .cm-string      { color: #98c379 !important; }
-.cm-s-one-dark .cm-string-2    { color: #98c379 !important; }
-.cm-s-one-dark .cm-meta        { color: #abb2bf !important; }
-.cm-s-one-dark .cm-qualifier   { color: #e5c07b !important; }
-.cm-s-one-dark .cm-builtin     { color: #e5c07b !important; }
-.cm-s-one-dark .cm-bracket     { color: #abb2bf !important; }
-.cm-s-one-dark .cm-tag         { color: #e06c75 !important; }
-.cm-s-one-dark .cm-attribute   { color: #d19a66 !important; }
-.cm-s-one-dark .cm-hr          { color: #5c6370 !important; }
-.cm-s-one-dark .cm-link        { color: #61afef !important; }
-.cm-s-one-dark .cm-error       { color: #f44747 !important; }
-.cm-s-one-dark .CodeMirror-gutters    { background: #0d0d10 !important; border-right: 1px solid #222226 !important; }
+.CodeMirror-cursor { border-left: 2px solid #f97316 !important; }
+.CodeMirror-selected, .CodeMirror-line ::selection { background: rgba(249,115,22,.16) !important; }
+.CodeMirror-focused .CodeMirror-selected { background: rgba(249,115,22,.16) !important; }
+.CodeMirror-matchingbracket { color: #f97316 !important; font-weight: bold; outline: 1px solid rgba(249,115,22,.35); }
+.CodeMirror-activeline-background { background: rgba(255,255,255,.025) !important; }
+/* Inlined one-dark tokens */
+.cm-s-one-dark.CodeMirror { background: #0c0c0f !important; color: #abb2bf !important; }
+.cm-s-one-dark .cm-keyword    { color: #c678dd !important; }
+.cm-s-one-dark .cm-atom       { color: #d19a66 !important; }
+.cm-s-one-dark .cm-number     { color: #d19a66 !important; }
+.cm-s-one-dark .cm-def        { color: #e06c75 !important; }
+.cm-s-one-dark .cm-variable   { color: #e06c75 !important; }
+.cm-s-one-dark .cm-variable-2 { color: #e5c07b !important; }
+.cm-s-one-dark .cm-variable-3 { color: #56b6c2 !important; }
+.cm-s-one-dark .cm-property   { color: #abb2bf !important; }
+.cm-s-one-dark .cm-operator   { color: #56b6c2 !important; }
+.cm-s-one-dark .cm-comment    { color: #5c6370 !important; font-style: italic !important; }
+.cm-s-one-dark .cm-string     { color: #98c379 !important; }
+.cm-s-one-dark .cm-string-2   { color: #98c379 !important; }
+.cm-s-one-dark .cm-meta       { color: #abb2bf !important; }
+.cm-s-one-dark .cm-builtin    { color: #e5c07b !important; }
+.cm-s-one-dark .cm-bracket    { color: #abb2bf !important; }
+.cm-s-one-dark .cm-tag        { color: #e06c75 !important; }
+.cm-s-one-dark .cm-attribute  { color: #d19a66 !important; }
+.cm-s-one-dark .cm-link       { color: #61afef !important; }
+.cm-s-one-dark .cm-error      { color: #f44747 !important; }
+.cm-s-one-dark .CodeMirror-gutters     { background: #0c0c0f !important; border-right: 1px solid #222226 !important; }
 .cm-s-one-dark .CodeMirror-linenumber { color: #3f3f46 !important; }
 .cm-s-one-dark .CodeMirror-cursor     { border-left: 2px solid #f97316 !important; }
-.cm-s-one-dark .CodeMirror-activeline-background { background: rgba(255,255,255,.03) !important; }
-#empty-editor { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--text3); }
-#empty-editor .big { font-size: 36px; }
-#empty-editor p { font-size: 13px; }
+.cm-s-one-dark .CodeMirror-activeline-background { background: rgba(255,255,255,.025) !important; }
 
-/* ── Right: preview + console ────────────────────────────────── */
-#right-col {
-  width: 520px; flex-shrink: 0;
-  background: var(--panel); border-left: 1px solid var(--border);
-  display: flex; flex-direction: column;
-}
-.right-tabs { display: flex; border-bottom: 1px solid var(--border); }
-.rtab { flex: 1; text-align: center; padding: 9px 4px; font-size: 12.5px; color: var(--text2); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; }
+/* Status strip below editor */
+#status-strip { height: 24px; background: var(--panel); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 12px; flex-shrink: 0; font-size: 11px; }
+.status-msg { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-msg.ok    { color: var(--green); }
+.status-msg.warn  { color: var(--amber); }
+.status-msg.error { color: var(--red); }
+.status-msg.info  { color: var(--text3); }
+#preview-badge { padding: 1px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 600; }
+#preview-badge.live  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,.25); }
+#preview-badge.error { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(239,68,68,.25); }
+#preview-badge.idle  { background: rgba(82,82,91,.1); color: var(--text3); border: 1px solid rgba(82,82,91,.2); }
+
+/* ── Right column ─────────────────────────────────────────────── */
+#right-col { width: 480px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--border); min-width: 280px; max-width: 700px; }
+
+.rtabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.rtab { flex: 1; text-align: center; padding: 9px 6px; font-size: 12.5px; color: var(--text2); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; }
+.rtab:hover { color: var(--text); }
 .rtab.active { color: var(--text); border-bottom-color: var(--flame); }
+
 .rpane { display: none; flex: 1; flex-direction: column; overflow: hidden; }
 .rpane.active { display: flex; }
 
-/* ── Virtual Shellfire preview ───────────────────────────────── */
-#preview-wrap { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-.preview-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.preview-toolbar span { font-size: 11.5px; color: var(--text3); }
-.preview-scale-btn { background: var(--raised); border: 1px solid var(--border); color: var(--text2); padding: 3px 8px; border-radius: 4px; font-size: 11px; }
-.preview-scale-btn:hover { border-color: var(--flame); color: var(--flame); }
-#preview-viewport { flex: 1; overflow: hidden; position: relative; background: #000; }
-#preview-frame {
-  position: absolute; top: 0; left: 0;
-  transform-origin: top left;
+/* ── Virtual Shellfire preview (embedded) ─────────────────────── */
+#preview-pane { position: relative; }
+.pv-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.pv-toolbar span { font-size: 11.5px; color: var(--text3); }
+.pv-btn { padding: 3px 9px; border-radius: 4px; border: 1px solid var(--border); background: var(--raised); color: var(--text2); font-size: 11px; transition: border-color .14s; }
+.pv-btn:hover { border-color: var(--flame); color: var(--flame); }
+#pv-viewport { flex: 1; background: #050507; overflow: hidden; position: relative; }
+#pv-frame {
+  position: absolute; transform-origin: top left;
   width: 1100px; height: 720px;
   background: #0f0f10;
-  overflow: hidden;
-  border-radius: 4px;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.06);
-  font-family: var(--font);
+  font-family: var(--font); font-size: 13px;
+  display: flex; flex-direction: column;
+  border-radius: 3px; overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.05);
 }
 
-/* Virtual Shellfire chrome */
-.sf-header {
-  height: 44px; background: rgba(15,15,16,.95);
-  border-bottom: 1px solid #222224;
-  display: flex; align-items: center; padding: 0 16px; gap: 10px;
-  flex-shrink: 0;
-}
-.sf-logo { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 700; color: #fafafa; }
-.sf-logo svg { width: 18px; height: 18px; }
+/* Shellfire chrome inside preview */
+.sf-header { height: 44px; background: rgba(12,12,15,.97); border-bottom: 1px solid #1f1f22; display: flex; align-items: center; padding: 0 14px; gap: 10px; flex-shrink: 0; }
+.sf-logo { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #fafafa; flex-shrink: 0; }
+.sf-logo svg { width: 17px; height: 17px; }
 .sf-logo .fire { color: #f97316; }
-.sf-toolbar { display: flex; align-items: center; gap: 4px; }
-.sf-btn { width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent; color: #a1a1aa; font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s; }
-.sf-btn:hover { background: #1e1e22; }
-.sf-sep { width: 1px; height: 18px; background: #27272a; margin: 0 2px; }
-#sf-toolbar-ext { display: flex; align-items: center; gap: 4px; }
-.sf-statusbar { height: 26px; background: #0d0d0f; border-top: 1px solid #222224; display: flex; align-items: center; padding: 0 12px; gap: 12px; flex-shrink: 0; }
-.sf-status-item { font-size: 11px; color: #52525b; display: flex; align-items: center; gap: 5px; }
-.sf-status-item .dot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; }
-#sf-statusbar-ext { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.sf-toolbar { display: flex; align-items: center; gap: 3px; }
+.sf-btn { width: 28px; height: 28px; border-radius: 5px; border: none; background: transparent; color: #52525b; font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s, color .12s; font-family: var(--font); }
+.sf-btn:hover { background: #1e1e22; color: #a1a1aa; }
+.sf-sep { width: 1px; height: 18px; background: #27272a; margin: 0 3px; }
+#sf-tb-ext { display: flex; align-items: center; gap: 3px; }
+.sf-statusbar { height: 26px; background: #0a0a0c; border-top: 1px solid #1f1f22; display: flex; align-items: center; padding: 0 12px; gap: 10px; flex-shrink: 0; }
+.sf-s-item { font-size: 11px; color: #3f3f46; display: flex; align-items: center; gap: 4px; cursor: default; }
+.sf-s-item .sdot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; }
+#sf-status-ext { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 .sf-body { flex: 1; display: flex; overflow: hidden; }
-.sf-sidebar { width: 200px; background: #101012; border-right: 1px solid #222224; display: flex; flex-direction: column; overflow: hidden; }
-.sf-sidebar-header { padding: 10px 12px 6px; font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: #52525b; }
-.sf-pane-list { flex: 1; }
-.sf-pane-item { padding: 5px 14px; font-size: 12px; color: #71717a; border-left: 2px solid transparent; display: flex; align-items: center; gap: 8px; }
+.sf-sidebar { width: 190px; background: #0d0d10; border-right: 1px solid #1f1f22; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+.sf-sb-hdr { padding: 10px 12px 5px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: #3f3f46; }
+.sf-pane-item { padding: 5px 14px; font-size: 12px; color: #71717a; border-left: 2px solid transparent; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background .1s; }
+.sf-pane-item:hover { background: #181820; color: #a1a1aa; }
 .sf-pane-item.active { color: #fafafa; border-left-color: #f97316; background: rgba(249,115,22,.07); }
-.sf-pane-item .pi-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
-.sf-right { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
-.sf-terminal { flex: 1; background: #0a0a0b; padding: 14px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; overflow: hidden; position: relative; }
-.sf-prompt { color: #52525b; }
-.sf-cmd { color: #fafafa; }
-.sf-output { color: #a1a1aa; }
-.sf-cursor { display: inline-block; width: 7px; height: 14px; background: #f97316; animation: blink 1s step-end infinite; vertical-align: middle; }
-@keyframes blink { 50% { opacity: 0; } }
-#sf-panel-ext { position: absolute; right: 0; top: 0; bottom: 26px; width: 240px; background: #101012; border-left: 1px solid #222224; display: none; flex-direction: column; overflow: hidden; }
-#sf-panel-ext.visible { display: flex; }
-.sf-panel-header { padding: 10px 12px; font-size: 11.5px; font-weight: 600; color: #a1a1aa; border-bottom: 1px solid #222224; }
-.sf-panel-content { flex: 1; overflow-y: auto; padding: 10px 12px; font-size: 12px; color: #71717a; }
-.sf-main-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.sf-pdot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+#sf-panel-list { overflow-y: auto; }
+.sf-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.sf-content { flex: 1; display: flex; overflow: hidden; position: relative; }
+.sf-term { flex: 1; background: #09090b; padding: 14px 16px; font-family: var(--mono); font-size: 12px; line-height: 1.65; overflow-y: auto; color: #a1a1aa; }
+.sf-term .prompt { color: #3f3f46; }
+.sf-term .cmd    { color: #fafafa; }
+.sf-term .out    { color: #71717a; }
+/* Right panel */
+#sf-right-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 240px; background: #0d0d10; border-left: 1px solid #1f1f22; display: none; flex-direction: column; }
+#sf-right-panel.show { display: flex; }
+.sf-rp-hdr { padding: 10px 12px; font-size: 11.5px; font-weight: 600; color: #a1a1aa; border-bottom: 1px solid #1f1f22; display: flex; align-items: center; justify-content: space-between; }
+.sf-rp-close { background: none; border: none; color: #52525b; font-size: 15px; cursor: pointer; }
+.sf-rp-close:hover { color: #a1a1aa; }
+#sf-right-body { flex: 1; overflow-y: auto; padding: 10px 12px; font-size: 12px; color: #71717a; }
+/* Toast */
+.pv-toast { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); background: #18181b; border: 1px solid #3f3f46; color: #a1a1aa; font-size: 11px; padding: 5px 14px; border-radius: 20px; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; z-index: 99; }
+.pv-toast.show { opacity: 1; }
 
-/* ── Console ─────────────────────────────────────────────────── */
-#console-pane { padding: 0; }
-#console-out {
-  flex: 1; overflow-y: auto; padding: 10px 12px;
-  font-family: var(--mono); font-size: 12px; line-height: 1.6;
-  background: #0a0a0b;
-}
-.log-info  { color: #a1a1aa; }
-.log-ok    { color: #22c55e; }
-.log-warn  { color: #f59e0b; }
-.log-error { color: #ef4444; }
-.log-ts    { color: #3f3f46; margin-right: 6px; }
-#console-input-wrap { display: flex; gap: 0; border-top: 1px solid var(--border); flex-shrink: 0; }
-#console-input { flex: 1; background: var(--bg); border: none; color: var(--text); padding: 7px 12px; font-family: var(--mono); font-size: 12px; outline: none; }
-#console-send { background: var(--raised); border: none; border-left: 1px solid var(--border); color: var(--text2); padding: 7px 14px; font-size: 12px; }
-#console-send:hover { background: var(--hover); color: var(--text); }
+/* ── Console pane ─────────────────────────────────────────────── */
+#console-pane { background: #09090b; }
+#console-out { flex: 1; overflow-y: auto; padding: 8px 12px; font-family: var(--mono); font-size: 12px; line-height: 1.65; }
+#console-out::-webkit-scrollbar { width: 4px; }
+#console-out::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.log-info  { color: var(--text2); padding: 1px 0; }
+.log-ok    { color: var(--green); }
+.log-warn  { color: var(--amber); }
+.log-error { color: var(--red); }
+.log-ts    { color: var(--text3); margin-right: 8px; font-size: 10.5px; }
+#console-input-row { display: flex; border-top: 1px solid var(--border); flex-shrink: 0; }
+#console-input { flex: 1; background: transparent; border: none; color: var(--text); padding: 8px 12px; font-family: var(--mono); font-size: 12px; outline: none; }
+#console-input::placeholder { color: var(--text3); }
+#console-send { background: var(--raised); border: none; border-left: 1px solid var(--border); color: var(--text2); padding: 8px 14px; transition: color .12s; }
+#console-send:hover { color: var(--text); }
 
-/* ── Live connection panel ───────────────────────────────────── */
-#connect-pane { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.connect-card { background: var(--raised); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; }
-.connect-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
-.connect-card p { font-size: 12.5px; color: var(--text2); line-height: 1.55; }
-.session-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
-.session-item:last-child { border: none; }
-.session-item .s-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
-.session-item .s-name { flex: 1; color: var(--text); font-weight: 500; }
-.session-item .s-proc { color: var(--text3); font-family: var(--mono); font-size: 11px; }
-.session-item .s-cwd  { color: var(--text3); font-size: 11px; }
-.connect-btn { width: 100%; padding: 7px; border-radius: var(--r); border: 1px solid var(--border2); background: var(--hover); color: var(--text); font-size: 12.5px; margin-top: 8px; transition: border-color .15s; }
-.connect-btn:hover { border-color: var(--flame); }
-.connect-btn.danger { border-color: rgba(239,68,68,.3); color: var(--red); }
-.connect-btn.danger:hover { border-color: var(--red); background: var(--red-bg); }
+/* ── Shellfire connect pane ───────────────────────────────────── */
+#connect-pane { overflow-y: auto; }
+.cp-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.cp-card { background: var(--raised); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; }
+.cp-card h3 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.cp-card p  { font-size: 12.5px; color: var(--text2); line-height: 1.55; }
+.sess-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.sess-item:last-child { border: none; }
+.sess-dot  { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.sess-name { font-weight: 500; color: var(--text); }
+.sess-proc { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.sess-cwd  { font-size: 11px; color: var(--text3); margin-left: auto; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-btn { width: 100%; padding: 7px; border-radius: var(--r); border: 1px solid var(--border); background: var(--hover); color: var(--text); font-size: 12.5px; margin-top: 8px; transition: border-color .14s; text-align: left; }
+.cp-btn:hover { border-color: var(--flame); }
 </style>
 </head>
 <body>
 
 <!-- ── Header ─────────────────────────────────────────────────── -->
 <div id="header">
-  <div class="hdr-logo">
+  <div class="hlogo">
     <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7.5 7 6 10.5 9 14c-1.5-.8-2.5-2.5-2.5-4C4.5 14.5 7 19 12 22c5-3 7.5-7.5 5.5-12.5-.8 1.5-2.5 3-4 3 3-3 2.5-7-1.5-10.5z" fill="#f97316"/></svg>
-    Shell<span class="fire">fire</span>&nbsp;Studio
+    Shell<span class="fire">fire</span>&thinsp;Studio
   </div>
-  <div class="hdr-divider"></div>
-  <div class="hdr-tabs">
-    <button class="hdr-tab active" onclick="setView('editor')">Editor</button>
-    <button class="hdr-tab" onclick="setView('preview')">Preview</button>
-    <button class="hdr-tab" onclick="setView('split')">Split</button>
+  <div class="hdiv"></div>
+
+  <div class="h-left">
+    <button class="hbtn" onclick="App.newProject('extension')">Extension</button>
+    <button class="hbtn" onclick="App.newProject('theme')">Theme</button>
+    <button class="hbtn" onclick="App.openFolder()">Open…</button>
   </div>
-  <div class="hdr-right">
-    <div id="status-pill" class="status-pill disconnected">
-      <span class="status-dot"></span>
-      <span id="status-text">Not connected</span>
+
+  <div class="h-center">
+    <span id="folder-crumb">No project open</span>
+  </div>
+
+  <div class="h-right">
+    <div class="conn-pill off" id="conn-pill">
+      <span class="conn-dot"></span>
+      <span id="conn-text">Disconnected</span>
     </div>
-    <button class="hdr-btn" onclick="App.newFile()">+ File</button>
-    <button class="hdr-btn" onclick="App.saveAll()">Save All</button>
-    <button class="hdr-btn primary" onclick="App.pushToShellfire()">▶ Push Live</button>
+    <button class="hbtn" id="auto-push-btn" onclick="App.toggleAutoPush()" title="Auto-push on save">⚡ Auto</button>
+    <button class="hbtn" id="popout-btn" onclick="App.popOutPreview()" title="⌘⇧P">⤢ Preview</button>
+    <button class="hbtn" onclick="App.saveActive()" title="⌘S">Save</button>
+    <button class="hbtn primary" onclick="App.pushToShellfire()" title="⌘⇧R">▶ Push Live</button>
   </div>
 </div>
 
@@ -315,167 +336,171 @@ button { font-family: var(--font); cursor: pointer; }
 
   <!-- File sidebar -->
   <div id="filesidebar">
-    <div class="fs-section">
+    <div class="sb-section">
       Files
-      <div style="display:flex;gap:4px">
-        <button onclick="App.openFolder()" title="Open folder">📂</button>
-        <button onclick="App.newFile()" title="New file">+</button>
+      <div style="display:flex;gap:2px">
+        <button class="sb-sec-btn" onclick="App.openFolder()" title="Open folder">📂</button>
+        <button class="sb-sec-btn" onclick="App.newFile()" title="New file">＋</button>
       </div>
     </div>
-    <div class="file-list" id="file-list"></div>
-
-    <div class="fs-section" style="margin-top:8px;border-top:1px solid var(--border);padding-top:12px">
-      Installed Extensions
+    <div class="file-list" id="file-list">
+      <div style="padding:16px 12px;text-align:center;color:var(--text3);font-size:12px">
+        Open a project or create a new extension
+      </div>
     </div>
-    <div class="installed-list" id="installed-list"></div>
 
-    <div style="padding:10px 10px 0;border-top:1px solid var(--border);margin-top:8px">
-      <button class="connect-btn" onclick="App.openFolder()">📂 Open Project</button>
-      <button class="connect-btn" onclick="App.exportTermext()" style="margin-top:6px">📦 Export .termext</button>
+    <div class="sb-section" style="margin-top:4px;border-top:1px solid var(--border);padding-top:10px">
+      Installed
+      <button class="sb-sec-btn" onclick="refreshInstalled()" title="Refresh">↺</button>
+    </div>
+    <div id="installed-list" style="overflow-y:auto;max-height:180px;flex-shrink:0;"></div>
+
+    <div class="sb-actions">
+      <button class="sb-action-btn" onclick="App.exportTermext()">📦 Export .termext</button>
     </div>
   </div>
 
-  <!-- Editor column -->
+  <div id="h-divider" class="resize-divider"></div>
+
+  <!-- Editor -->
   <div id="editor-col">
     <div id="tab-bar"></div>
     <div id="editor-wrap">
-      <div id="empty-editor">
+      <div id="empty-state">
         <div class="big">🔥</div>
-        <p style="font-size:15px;font-weight:600;color:var(--text2)">Shellfire Studio</p>
-        <p>Open a project or create a new extension file</p>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="hdr-btn" onclick="App.newExtension()">New Extension</button>
-          <button class="hdr-btn" onclick="App.newTheme()">New Theme</button>
-          <button class="hdr-btn" onclick="App.openFolder()">Open Folder</button>
+        <h2>Shellfire Studio</h2>
+        <p>Build extensions with live preview and hot deploy</p>
+        <div class="es-btns">
+          <button class="es-btn" onclick="App.newProject('extension')">New Extension</button>
+          <button class="es-btn" onclick="App.newProject('theme')">New Theme</button>
+          <button class="es-btn" onclick="App.openFolder()">Open Folder</button>
         </div>
+        <p style="margin-top:16px;font-size:11.5px">⌘S Save &nbsp;·&nbsp; ⌘O Open &nbsp;·&nbsp; ⌘⇧R Push Live &nbsp;·&nbsp; ⌘⇧P Pop Preview</p>
       </div>
+    </div>
+    <div id="status-strip">
+      <span id="status-msg" class="status-msg info">Ready</span>
+      <span id="preview-badge" class="preview-badge idle">○ Idle</span>
     </div>
   </div>
 
-  <!-- Right column: Preview + Console + Connect -->
+  <div id="r-divider" class="resize-divider"></div>
+
+  <!-- Right panel -->
   <div id="right-col">
-    <div class="right-tabs">
-      <button class="rtab active" onclick="switchRTab('preview', this)">🔥 Live Preview</button>
-      <button class="rtab" onclick="switchRTab('console', this)">📟 Console</button>
-      <button class="rtab" onclick="switchRTab('connect', this)">🔌 Shellfire</button>
+    <div class="rtabs">
+      <button class="rtab active" onclick="switchR('preview',this)">🔥 Preview</button>
+      <button class="rtab" onclick="switchR('console',this)">📟 Console</button>
+      <button class="rtab" onclick="switchR('connect',this)">🔌 Shellfire</button>
     </div>
 
-    <!-- Preview pane -->
+    <!-- Preview -->
     <div class="rpane active" id="preview-pane">
-      <div id="preview-wrap">
-        <div class="preview-toolbar">
-          <span>Virtual Shellfire — extension renders live</span>
-          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-            <button class="preview-scale-btn" onclick="Preview.resetLayout()">↺ Reset</button>
-            <button class="preview-scale-btn" onclick="Preview.togglePanel()">⊞ Panel</button>
-          </div>
+      <div class="pv-toolbar">
+        <span>Live Preview — extension renders here as you type</span>
+        <div style="margin-left:auto;display:flex;gap:5px">
+          <button class="pv-btn" onclick="EmbeddedPreview.reset();setPreviewBadge('idle')">↺</button>
+          <button class="pv-btn" onclick="document.getElementById('sf-right-panel').classList.toggle('show')">Panel</button>
+          <button class="pv-btn" onclick="App.popOutPreview()">⤢ Pop out</button>
         </div>
-        <div id="preview-viewport">
-          <!-- Virtual Shellfire -->
-          <div id="preview-frame">
-            <!-- SF Header -->
-            <div class="sf-header">
-              <div class="sf-logo">
-                <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 2C7.5 7 6 10.5 9 14c-1.5-.8-2.5-2.5-2.5-4C4.5 14.5 7 19 12 22c5-3 7.5-7.5 5.5-12.5-.8 1.5-2.5 3-4 3 3-3 2.5-7-1.5-10.5z" fill="#f97316"/></svg>
-                Shell<span class="fire">fire</span>
-              </div>
-              <div class="sf-toolbar">
-                <button class="sf-btn" title="Split">⊞</button>
-                <button class="sf-btn" title="Zoom">⤢</button>
-                <div class="sf-sep"></div>
-                <!-- Extension toolbar buttons injected here -->
-                <div id="sf-toolbar-ext"></div>
-              </div>
-              <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
-                <button class="sf-btn" title="Settings">⚙</button>
-              </div>
+      </div>
+      <div id="pv-viewport">
+        <div id="pv-frame">
+          <!-- Header -->
+          <div class="sf-header">
+            <div class="sf-logo">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7.5 7 6 10.5 9 14c-1.5-.8-2.5-2.5-2.5-4C4.5 14.5 7 19 12 22c5-3 7.5-7.5 5.5-12.5-.8 1.5-2.5 3-4 3 3-3 2.5-7-1.5-10.5z" fill="#f97316"/></svg>
+              Shell<span class="fire">fire</span>
             </div>
-
-            <!-- SF Body -->
-            <div class="sf-body" style="flex:1;display:flex;flex-direction:column;">
-              <div style="display:flex;flex:1;overflow:hidden;">
-                <!-- Sidebar -->
-                <div class="sf-sidebar">
-                  <div class="sf-sidebar-header">Sessions</div>
-                  <div class="sf-pane-list">
-                    <div class="sf-pane-item active"><span class="pi-dot"></span>Terminal 1</div>
-                    <div class="sf-pane-item"><span class="pi-dot" style="background:#52525b"></span>Terminal 2</div>
-                    <div class="sf-pane-item"><span class="pi-dot"></span>node-server</div>
-                  </div>
-                  <!-- Extension side panels injected here -->
-                  <div id="sf-panel-list"></div>
+            <div class="sf-toolbar">
+              <button class="sf-btn">⊞</button>
+              <button class="sf-btn">⤢</button>
+              <div class="sf-sep"></div>
+              <div id="sf-tb-ext"></div>
+            </div>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:3px">
+              <button class="sf-btn">📡</button>
+              <button class="sf-btn">⚙</button>
+            </div>
+          </div>
+          <!-- Body -->
+          <div class="sf-body">
+            <div class="sf-sidebar">
+              <div class="sf-sb-hdr">Sessions</div>
+              <div class="sf-pane-item active"><span class="sf-pdot"></span>Terminal 1<span style="margin-left:auto;font-size:10px;color:#3f3f46">zsh</span></div>
+              <div class="sf-pane-item"><span class="sf-pdot"></span>api-server<span style="margin-left:auto;font-size:10px;color:#3f3f46">node</span></div>
+              <div class="sf-pane-item"><span class="sf-pdot" style="background:#3f3f46"></span>git-watch<span style="margin-left:auto;font-size:10px;color:#3f3f46">idle</span></div>
+              <div id="sf-panel-list"></div>
+            </div>
+            <div class="sf-main">
+              <div class="sf-content">
+                <div class="sf-term" id="sf-term">
+                  <div><span class="prompt">~/projects/my-app</span> <span style="color:#3b82f6"> main</span></div>
+                  <div><span class="prompt">❯</span> <span class="cmd">npm run dev</span></div>
+                  <div class="out">&nbsp; vite v5.4.0 dev server running</div>
+                  <div class="out">&nbsp; ➜ Local: <span style="color:#3b82f6">http://localhost:5173/</span></div>
+                  <div style="margin-top:6px"><span class="prompt">❯</span> <span style="display:inline-block;width:7px;height:13px;background:#f97316;animation:cur 1s step-end infinite;vertical-align:text-bottom"></span></div>
+                  <style>@keyframes cur{50%{opacity:0}}</style>
                 </div>
-
-                <!-- Main area -->
-                <div class="sf-main-col">
-                  <div style="flex:1;display:flex;overflow:hidden;position:relative;">
-                    <div class="sf-terminal" id="sf-terminal">
-                      <div><span class="sf-prompt">~/projects/my-app</span> <span style="color:#52525b">on</span> <span style="color:#3b82f6">main</span></div>
-                      <div><span class="sf-prompt">❯</span> <span class="sf-cmd">npm run dev</span></div>
-                      <div class="sf-output">  vite v5.0.0 dev server running</div>
-                      <div class="sf-output">  ➜ Local: <span style="color:#3b82f6">http://localhost:5173/</span></div>
-                      <div class="sf-output">  ➜ Network: <span style="color:#3b82f6">http://192.168.1.5:5173/</span></div>
-                      <div style="margin-top:8px"><span class="sf-prompt">❯</span> <span class="sf-cursor"></span></div>
-                    </div>
-
-                    <!-- Extension panel (right side) -->
-                    <div id="sf-panel-ext">
-                      <div class="sf-panel-header" id="sf-panel-title">Panel</div>
-                      <div class="sf-panel-content" id="sf-panel-content"></div>
-                    </div>
+                <div id="sf-right-panel">
+                  <div class="sf-rp-hdr">
+                    <span id="sf-right-title">Panel</span>
+                    <button class="sf-rp-close" onclick="document.getElementById('sf-right-panel').classList.remove('show')">✕</button>
                   </div>
+                  <div id="sf-right-body"></div>
                 </div>
               </div>
-
-              <!-- Status bar -->
               <div class="sf-statusbar">
-                <div class="sf-status-item"><span class="dot"></span>3 panes</div>
-                <div class="sf-status-item">main</div>
-                <div class="sf-status-item">node</div>
-                <!-- Extension status bar widgets injected here -->
-                <div id="sf-statusbar-ext"></div>
+                <div class="sf-s-item"><span class="sdot" style="width:5px;height:5px;border-radius:50%;background:#22c55e"></span>3 panes</div>
+                <div class="sf-s-item"> main</div>
+                <div class="sf-s-item">node 22</div>
+                <div id="sf-status-ext"></div>
               </div>
             </div>
           </div>
         </div>
+        <div class="pv-toast" id="preview-toast"></div>
       </div>
     </div>
 
-    <!-- Console pane -->
+    <!-- Console -->
     <div class="rpane" id="console-pane">
       <div id="console-out"></div>
-      <div id="console-input-wrap">
-        <input id="console-input" placeholder='Send command to Shellfire session (e.g. git status)' onkeydown="App.consoleKeydown(event)"/>
-        <button id="console-send" onclick="App.consoleSend()">Send</button>
+      <div id="console-input-row">
+        <input id="console-input" placeholder="Send to Shellfire session (e.g. git status)" onkeydown="App.consoleKeydown(event)"/>
+        <button id="console-send" onclick="App.consoleSend()">↵</button>
       </div>
     </div>
 
-    <!-- Shellfire connect pane -->
+    <!-- Connect -->
     <div class="rpane" id="connect-pane">
-      <div style="padding:12px;background:var(--raised);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-        <span style="font-size:12.5px;font-weight:600">Shellfire v3 Connection</span>
-        <button class="hdr-btn" onclick="App.refreshConnection()" style="padding:4px 10px;font-size:12px">Refresh</button>
-      </div>
-      <div id="connect-body" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;">
-        <div class="connect-card" id="conn-status-card">
-          <h3>Status</h3>
-          <p id="conn-status-text">Checking connection…</p>
+      <div class="cp-body">
+        <div class="cp-card">
+          <h3>Shellfire v3 Connection</h3>
+          <p id="conn-detail">Checking…</p>
+          <div id="sessions-list" style="margin-top:10px"></div>
         </div>
-        <div class="connect-card" id="sessions-card" style="display:none">
-          <h3>Active Sessions</h3>
-          <div id="sessions-list"></div>
+        <div class="cp-card">
+          <h3>Live Deploy</h3>
+          <p>Push Live writes your extension to <code style="font-size:11px;background:rgba(255,255,255,.07);padding:1px 5px;border-radius:3px">~/.shellfire/plugins/</code> and hot-reloads it without restarting Shellfire.</p>
+          <button class="cp-btn" onclick="App.pushToShellfire()">▶ Push Live Now</button>
+          <button class="cp-btn" onclick="App.toggleAutoPush()" style="margin-top:4px">⚡ Toggle Auto-push on Save</button>
         </div>
-        <div class="connect-card">
-          <h3>Push Extension</h3>
-          <p>Click "▶ Push Live" in the toolbar to install your current extension into the running Shellfire and hot-reload it.</p>
-          <button class="connect-btn" onclick="App.pushToShellfire()" style="margin-top:8px">▶ Push Live Now</button>
+        <div class="cp-card">
+          <h3>Shortcuts</h3>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text2)">
+            <div style="display:flex;justify-content:space-between"><span>Save</span><kbd style="font-family:var(--mono);font-size:11px;background:var(--hover);border:1px solid var(--border);padding:1px 6px;border-radius:3px">⌘S</kbd></div>
+            <div style="display:flex;justify-content:space-between"><span>Push Live</span><kbd style="font-family:var(--mono);font-size:11px;background:var(--hover);border:1px solid var(--border);padding:1px 6px;border-radius:3px">⌘⇧R</kbd></div>
+            <div style="display:flex;justify-content:space-between"><span>Pop out Preview</span><kbd style="font-family:var(--mono);font-size:11px;background:var(--hover);border:1px solid var(--border);padding:1px 6px;border-radius:3px">⌘⇧P</kbd></div>
+            <div style="display:flex;justify-content:space-between"><span>Open Folder</span><kbd style="font-family:var(--mono);font-size:11px;background:var(--hover);border:1px solid var(--border);padding:1px 6px;border-radius:3px">⌘O</kbd></div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+
+  </div><!-- end right-col -->
 </div>
 
-<!-- ── CodeMirror ──────────────────────────────────────────────── -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
@@ -483,7 +508,53 @@ button { font-family: var(--font); cursor: pointer; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/display/placeholder.min.js"></script>
+
+<script>
+// Scale preview frame to viewport
+function scalePV() {
+  const vp = document.getElementById("pv-viewport");
+  const fr = document.getElementById("pv-frame");
+  if (!vp || !fr) return;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const scale = Math.min(vw / 1100, vh / 720, 1);
+  fr.style.transform = `scale(${scale})`;
+  fr.style.left = ((vw - 1100*scale)/2) + "px";
+  fr.style.top  = ((vh - 720*scale)/2) + "px";
+}
+new ResizeObserver(scalePV).observe(document.getElementById("pv-viewport") || document.body);
+window.addEventListener("resize", scalePV);
+setTimeout(scalePV, 100);
+
+// Tab switching
+function switchR(name, el) {
+  document.querySelectorAll(".rtab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  document.querySelectorAll(".rpane").forEach(p => p.classList.remove("active"));
+  document.getElementById(name+"-pane").classList.add("active");
+  if (name === "preview") setTimeout(scalePV, 50);
+}
+
+// Update folder crumb
+const origOpenFolder = () => {};
+window._updateCrumb = (path) => {
+  const el = document.getElementById("folder-crumb");
+  if (el) el.textContent = path ? path.replace(/^\/Users\/[^/]+/, "~") : "No project open";
+};
+</script>
 <script src="renderer.js"></script>
+<script>
+// Patch openFolder to update crumb
+const _origOpen = App.openFolder.bind(App);
+App.openFolder = async function() {
+  await _origOpen();
+  window._updateCrumb(window.S?.folderPath);
+};
+const _origNew = App.newProject.bind(App);
+App.newProject = function(type) {
+  _origNew(type);
+  window._updateCrumb(null);
+  document.getElementById("folder-crumb").textContent = `New ${type}`;
+};
+</script>
 </body>
 </html>

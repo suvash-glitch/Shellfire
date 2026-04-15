@@ -6831,6 +6831,12 @@
     window.__setActive = (id) => { setActive(id); };
     window.__createPane = async (cwd) => { return await addTerminal(cwd); };
     window.__removeTerminal = (id) => { removeTerminal(id); };
+    // Hot-reload a single extension (used by Studio "Push Live")
+    window.__reloadExtension = async (id, type) => {
+      try { deactivatePlugin(id); } catch {}
+      try { await activateSinglePlugin(id, type || "extension"); } catch (e) { return { error: e.message }; }
+      return { ok: true };
+    };
 
     // ============================================================
     // AUTO-UPDATE NOTIFICATION UI
