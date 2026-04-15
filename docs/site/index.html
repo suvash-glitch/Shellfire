@@ -4,198 +4,269 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Shellfire Docs</title>
-<meta name="description" content="Complete documentation for Shellfire — AI-powered terminal multiplexer. Basics, extension API, internal architecture, and more."/>
+<meta name="description" content="Complete documentation for Shellfire — AI-powered terminal multiplexer. User guide, Extension API, internal architecture and more."/>
 <link rel="stylesheet" href="styles.css"/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>"/>
 </head>
 <body>
 
-<!-- ── Top Header ───────────────────────────────────────────── -->
+<!-- ── Header ────────────────────────────────────────────────── -->
 <header id="header">
-  <button id="menu-toggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
-  <a class="logo" href="#" onclick="navigate('overview')">
-    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M14 2C8 8 6 12 10 16c-2-1-3-3-3-5C5 17 8 22 14 26c6-4 9-9 7-15-1 2-3 4-5 4 4-4 3-9-2-13z" fill="#ff6b35"/>
+  <!-- Logo spans exact sidebar width -->
+  <a class="logo" href="#" onclick="navigate('overview');return false;">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+      <path d="M12 2C7.5 7 6 10.5 9 14c-1.5-.8-2.5-2.5-2.5-4C4.5 14.5 7 19 12 22c5-3 7.5-7.5 5.5-12.5-.8 1.5-2.5 3-4 3 3-3 2.5-7-1.5-10.5z" fill="var(--flame)"/>
     </svg>
-    <span>Shell<span>fire</span></span>
+    Shell<span class="fire">fire</span>
   </a>
-  <div id="search-wrap">
-    <span id="search-icon">⌕</span>
-    <input id="search" type="search" placeholder="Search docs…" autocomplete="off" oninput="filterNav(this.value)" onkeydown="searchKeydown(event)"/>
+
+  <!-- Everything right of the logo -->
+  <div id="header-right">
+    <button id="menu-toggle" onclick="toggleSidebar()" aria-label="Toggle menu">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <rect y="2"    width="16" height="1.5" rx=".75"/>
+        <rect y="7.25" width="16" height="1.5" rx=".75"/>
+        <rect y="12.5" width="16" height="1.5" rx=".75"/>
+      </svg>
+    </button>
+
+    <div id="header-search">
+      <span id="search-icon">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="5.5" cy="5.5" r="4.5"/>
+          <path d="M9.5 9.5L12 12" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <input id="search" type="search" placeholder="Search docs…" autocomplete="off"
+        oninput="filterNav(this.value)" onkeydown="searchKeydown(event)"/>
+      <span class="search-kbd">/</span>
+    </div>
+
+    <nav id="header-nav">
+      <a href="https://github.com/suvash-glitch/Shellfire" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/suvash-glitch/Shellfire/releases" target="_blank" rel="noopener">Releases</a>
+      <a class="gh-btn" href="https://github.com/suvash-glitch/Shellfire" target="_blank" rel="noopener">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25z"/>
+        </svg>
+        Star
+      </a>
+    </nav>
   </div>
-  <nav>
-    <a href="https://github.com/suvash-glitch/Shellfire" target="_blank">GitHub</a>
-    <a href="https://github.com/suvash-glitch/Shellfire/releases" target="_blank">Releases</a>
-    <a class="gh-btn" href="https://github.com/suvash-glitch/Shellfire" target="_blank">⭐ Star</a>
-  </nav>
 </header>
 
-<!-- ── Layout ───────────────────────────────────────────────── -->
-<div id="layout">
-
-  <!-- Sidebar -->
-  <nav id="sidebar" aria-label="Documentation navigation"></nav>
-
-  <!-- Content -->
+<!-- ── Body ──────────────────────────────────────────────────── -->
+<div id="page">
+  <nav id="sidebar" aria-label="Documentation">
+    <div class="sidebar-inner" id="sidebar-inner"></div>
+  </nav>
   <main id="content" role="main"></main>
-
 </div>
 
-<!-- Footer -->
 <footer id="footer">
-  <span>Shellfire v3 — <a href="https://github.com/suvash-glitch/Shellfire/blob/main/LICENSE">MIT License</a></span>
-  <span style="margin-left:auto;color:var(--text3)">Built with ♥ and Claude</span>
+  <span>Shellfire v3 &mdash; <a href="https://github.com/suvash-glitch/Shellfire/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a></span>
+  <span style="margin-left:auto">Built with ♥ and Claude</span>
 </footer>
 
-<!-- Scripts -->
+<!-- ── Scripts ───────────────────────────────────────────────── -->
 <script src="nav.js"></script>
 <script src="content-intro.js"></script>
 <script src="content-ext.js"></script>
 <script>
 "use strict";
 
-// ── Merge content ────────────────────────────────────────────
 const CONTENT = { ...CONTENT_INTRO, ...CONTENT_EXT };
-
-// ── State ────────────────────────────────────────────────────
 let currentSection = null;
 
-// ── Build sidebar ─────────────────────────────────────────────
+// ── Sidebar ───────────────────────────────────────────────────
 function buildSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  sidebar.innerHTML = '';
+  const inner = document.getElementById('sidebar-inner');
+
+  // Version badge
+  const badge = document.createElement('div');
+  badge.className = 'sidebar-version';
+  badge.innerHTML = `
+    <span class="v-name">🔥 Shellfire</span>
+    <span class="v-label">v3 docs</span>
+  `;
+  inner.appendChild(badge);
+
+  // Nav groups
   for (const group of NAV) {
-    const label = document.createElement('div');
-    label.className = 'nav-group-label';
-    label.textContent = group.group;
-    sidebar.appendChild(label);
+    const lbl = document.createElement('div');
+    lbl.className = 'nav-group-label';
+    lbl.textContent = group.group;
+    inner.appendChild(lbl);
+
     for (const item of group.items) {
       const a = document.createElement('a');
       a.className = 'nav-item';
       a.textContent = item.label;
       a.href = '#' + item.id;
       a.dataset.id = item.id;
-      a.onclick = (e) => { e.preventDefault(); navigate(item.id); };
-      sidebar.appendChild(a);
+      a.addEventListener('click', (e) => { e.preventDefault(); navigate(item.id); });
+      inner.appendChild(a);
     }
   }
 }
 
-// ── Build content areas ───────────────────────────────────────
+// ── Content sections ─────────────────────────────────────────
 function buildContent() {
   const main = document.getElementById('content');
-  main.innerHTML = '';
   for (const group of NAV) {
     for (const item of group.items) {
       const section = document.createElement('section');
       section.id = 'section-' + item.id;
       section.className = 'doc-section';
-      section.innerHTML = CONTENT[item.id] || `<h1>${item.label}</h1><p>Coming soon.</p>`;
+
+      const body = document.createElement('div');
+      body.className = 'section-body';
+      body.innerHTML = processHTML(CONTENT[item.id] || `<h1>${item.label}</h1><p class="lead">Coming soon.</p>`);
+      section.appendChild(body);
       main.appendChild(section);
     }
   }
 }
 
-// ── Navigation ────────────────────────────────────────────────
-function navigate(id, pushState = true) {
-  // Deactivate old
+// Upgrade legacy HTML patterns to the new component structure
+function processHTML(html) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = html;
+
+  // Code blocks: move lang label + copy btn into a header bar
+  wrap.querySelectorAll('.code-block').forEach(block => {
+    const langEl = block.querySelector('.lang-label');
+    const oldCopy = block.querySelector('.copy-btn');
+    const pre = block.querySelector('pre');
+    if (!langEl || !pre) return;
+
+    const lang = langEl.textContent.trim();
+    langEl.remove();
+    if (oldCopy) oldCopy.remove();
+
+    const hdr = document.createElement('div');
+    hdr.className = 'code-block-header';
+    hdr.innerHTML = `<span class="lang">${lang}</span><button class="copy-btn" type="button">Copy</button>`;
+    block.insertBefore(hdr, pre);
+  });
+
+  // Callouts: add icon + wrap body
+  const iconMap = { note: 'ℹ️', tip: '💡', warn: '⚠️', danger: '🚨' };
+  wrap.querySelectorAll('.callout').forEach(el => {
+    const type = ['note','tip','warn','danger'].find(t => el.classList.contains(t)) || 'note';
+    const inner = el.innerHTML;
+    el.innerHTML = `<span class="callout-icon">${iconMap[type]}</span><div class="callout-body">${inner}</div>`;
+  });
+
+  return wrap.innerHTML;
+}
+
+// ── Navigate ──────────────────────────────────────────────────
+function navigate(id, push = true) {
+  // Deactivate current
   if (currentSection) {
     document.getElementById('section-' + currentSection)?.classList.remove('active');
     document.querySelector(`.nav-item[data-id="${currentSection}"]`)?.classList.remove('active');
   }
 
-  // Activate new
   const section = document.getElementById('section-' + id);
   if (!section) return;
+
   section.classList.add('active');
-  const navItem = document.querySelector(`.nav-item[data-id="${id}"]`);
-  navItem?.classList.add('active');
-  navItem?.scrollIntoView({ block: 'nearest' });
+
+  const navEl = document.querySelector(`.nav-item[data-id="${id}"]`);
+  navEl?.classList.add('active');
+  navEl?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 
   currentSection = id;
-  document.getElementById('content').scrollTop = 0;
-  window.scrollTo(0, 0);
+  window.scrollTo({ top: 0, behavior: 'instant' });
 
-  if (pushState) {
-    history.pushState({ id }, '', '#' + id);
-  }
+  const label = NAV.flatMap(g => g.items).find(i => i.id === id)?.label || '';
+  document.title = label ? `${label} — Shellfire Docs` : 'Shellfire Docs';
 
-  // Wire up copy buttons
-  setTimeout(wireCopyButtons, 50);
+  if (push) history.pushState({ id }, '', '#' + id);
+
+  // Wire copy buttons in this section (small delay for paint)
+  requestAnimationFrame(wireCopyButtons);
+
   // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
 }
 
 // ── Copy buttons ──────────────────────────────────────────────
 function wireCopyButtons() {
-  document.querySelectorAll('.copy-btn').forEach(btn => {
-    if (btn.dataset.wired) return;
+  document.querySelectorAll('.copy-btn:not([data-wired])').forEach(btn => {
     btn.dataset.wired = '1';
-    btn.onclick = () => {
-      const pre = btn.closest('.code-block').querySelector('pre');
-      navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.addEventListener('click', () => {
+      const pre = btn.closest('.code-block')?.querySelector('pre');
+      if (!pre) return;
+      const text = pre.innerText ?? pre.textContent;
+      navigator.clipboard?.writeText(text).then(() => {
         btn.textContent = 'Copied!';
         btn.classList.add('copied');
         setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
-      });
-    };
+      }).catch(() => {});
+    });
   });
 }
 
-// ── Search / filter ───────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────
 function filterNav(q) {
-  const term = q.toLowerCase().trim();
-  document.querySelectorAll('.nav-item').forEach(item => {
-    if (!term || item.textContent.toLowerCase().includes(term)) {
-      item.style.display = '';
-    } else {
-      item.style.display = 'none';
-    }
+  const term = q.trim().toLowerCase();
+  const items = document.querySelectorAll('.nav-item');
+  items.forEach(el => {
+    el.style.display = (!term || el.textContent.toLowerCase().includes(term)) ? '' : 'none';
   });
-  document.querySelectorAll('.nav-group-label').forEach(label => {
-    let next = label.nextElementSibling;
-    let hasVisible = false;
-    while (next && !next.classList.contains('nav-group-label')) {
-      if (next.style.display !== 'none') hasVisible = true;
-      next = next.nextElementSibling;
+  document.querySelectorAll('.nav-group-label').forEach(lbl => {
+    if (!term) { lbl.style.display = ''; return; }
+    let sib = lbl.nextElementSibling;
+    let visible = false;
+    while (sib && !sib.classList.contains('nav-group-label')) {
+      if (sib.style.display !== 'none') visible = true;
+      sib = sib.nextElementSibling;
     }
-    label.style.display = hasVisible ? '' : (term ? 'none' : '');
+    lbl.style.display = visible ? '' : 'none';
   });
 }
 
 function searchKeydown(e) {
   if (e.key === 'Enter') {
-    const first = document.querySelector('.nav-item:not([style*="display: none"])');
-    if (first) { navigate(first.dataset.id); document.getElementById('search').value = ''; filterNav(''); }
+    const first = document.querySelector('.nav-item:not([style*="none"])');
+    if (first) { navigate(first.dataset.id); e.target.value = ''; filterNav(''); }
   }
-  if (e.key === 'Escape') { document.getElementById('search').value = ''; filterNav(''); }
+  if (e.key === 'Escape') { e.target.value = ''; filterNav(''); e.target.blur(); }
 }
 
-// ── Mobile sidebar toggle ─────────────────────────────────────
+// ── Mobile sidebar ────────────────────────────────────────────
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
+document.addEventListener('click', (e) => {
+  const sb = document.getElementById('sidebar');
+  const toggle = document.getElementById('menu-toggle');
+  if (sb.classList.contains('open') &&
+      !sb.contains(e.target) && !toggle.contains(e.target)) {
+    sb.classList.remove('open');
+  }
+});
+
+// ── Keyboard shortcut: / → search ────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
+    e.preventDefault();
+    document.getElementById('search').focus();
+  }
+});
 
 // ── Popstate ─────────────────────────────────────────────────
 window.addEventListener('popstate', (e) => {
-  const id = e.state?.id || location.hash.slice(1) || NAV[0].items[0].id;
-  navigate(id, false);
+  navigate(e.state?.id || location.hash.slice(1) || 'overview', false);
 });
 
 // ── Init ─────────────────────────────────────────────────────
 buildSidebar();
 buildContent();
-
-const initId = location.hash.slice(1) || 'overview';
-navigate(initId, false);
-
-// Keyboard shortcut: / to focus search
-document.addEventListener('keydown', e => {
-  if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
-    e.preventDefault();
-    document.getElementById('search').focus();
-  }
-});
+navigate(location.hash.slice(1) || 'overview', false);
 </script>
 </body>
 </html>
