@@ -134,13 +134,50 @@ button { font-family: var(--font); cursor: pointer; }
 .etab:hover .close-tab { opacity: 1; }
 .etab .close-tab:hover { background: var(--hover); color: var(--text); }
 #editor-wrap { flex: 1; overflow: hidden; position: relative; }
-.CodeMirror { height: 100% !important; font-family: var(--mono) !important; font-size: 13.5px !important; background: #0a0a0b !important; }
-.CodeMirror-scroll { padding-bottom: 20px; }
-.CodeMirror-gutters { background: #0a0a0b !important; border-right: 1px solid var(--border) !important; }
-.CodeMirror-linenumber { color: var(--text3) !important; padding: 0 12px !important; }
-.CodeMirror-cursor { border-left-color: var(--flame) !important; }
-.CodeMirror-selected { background: rgba(249,115,22,.15) !important; }
-.CodeMirror-matchingbracket { color: var(--flame) !important; font-weight: bold; }
+/* ── CodeMirror base — never rely on CDN theme for these ────── */
+.CodeMirror {
+  height: 100% !important;
+  font-family: var(--mono) !important;
+  font-size: 13.5px !important;
+  line-height: 1.7 !important;
+  background: #0d0d10 !important;
+  color: #abb2bf !important;       /* ← explicit so dark bg never has black text */
+}
+.CodeMirror-scroll { padding-bottom: 24px; }
+.CodeMirror-gutters { background: #0d0d10 !important; border-right: 1px solid #222226 !important; }
+.CodeMirror-linenumber { color: #3f3f46 !important; padding: 0 14px !important; }
+.CodeMirror-cursor { border-left: 2px solid var(--flame) !important; }
+.CodeMirror-selected, .CodeMirror-line ::selection { background: rgba(249,115,22,.18) !important; }
+.CodeMirror-matchingbracket { color: var(--flame) !important; font-weight: bold; outline: 1px solid rgba(249,115,22,.4); }
+.CodeMirror-activeline-background { background: rgba(255,255,255,.03) !important; }
+.CodeMirror-focused .CodeMirror-selected { background: rgba(249,115,22,.18) !important; }
+/* Inline one-dark token colors (fallback if CDN misses) */
+.cm-s-one-dark.CodeMirror { background: #0d0d10 !important; color: #abb2bf !important; }
+.cm-s-one-dark .cm-keyword     { color: #c678dd !important; }
+.cm-s-one-dark .cm-atom        { color: #d19a66 !important; }
+.cm-s-one-dark .cm-number      { color: #d19a66 !important; }
+.cm-s-one-dark .cm-def         { color: #e06c75 !important; }
+.cm-s-one-dark .cm-variable    { color: #e06c75 !important; }
+.cm-s-one-dark .cm-variable-2  { color: #e5c07b !important; }
+.cm-s-one-dark .cm-variable-3  { color: #56b6c2 !important; }
+.cm-s-one-dark .cm-property    { color: #abb2bf !important; }
+.cm-s-one-dark .cm-operator    { color: #56b6c2 !important; }
+.cm-s-one-dark .cm-comment     { color: #5c6370 !important; font-style: italic !important; }
+.cm-s-one-dark .cm-string      { color: #98c379 !important; }
+.cm-s-one-dark .cm-string-2    { color: #98c379 !important; }
+.cm-s-one-dark .cm-meta        { color: #abb2bf !important; }
+.cm-s-one-dark .cm-qualifier   { color: #e5c07b !important; }
+.cm-s-one-dark .cm-builtin     { color: #e5c07b !important; }
+.cm-s-one-dark .cm-bracket     { color: #abb2bf !important; }
+.cm-s-one-dark .cm-tag         { color: #e06c75 !important; }
+.cm-s-one-dark .cm-attribute   { color: #d19a66 !important; }
+.cm-s-one-dark .cm-hr          { color: #5c6370 !important; }
+.cm-s-one-dark .cm-link        { color: #61afef !important; }
+.cm-s-one-dark .cm-error       { color: #f44747 !important; }
+.cm-s-one-dark .CodeMirror-gutters    { background: #0d0d10 !important; border-right: 1px solid #222226 !important; }
+.cm-s-one-dark .CodeMirror-linenumber { color: #3f3f46 !important; }
+.cm-s-one-dark .CodeMirror-cursor     { border-left: 2px solid #f97316 !important; }
+.cm-s-one-dark .CodeMirror-activeline-background { background: rgba(255,255,255,.03) !important; }
 #empty-editor { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--text3); }
 #empty-editor .big { font-size: 36px; }
 #empty-editor p { font-size: 13px; }

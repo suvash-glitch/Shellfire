@@ -27,6 +27,7 @@ function initCM() {
 
   const wrap = document.getElementById("editor-wrap");
   const ta = document.createElement("textarea");
+  ta.style.display = "none"; // prevent flash of unstyled textarea
   wrap.appendChild(ta);
 
   cm = CodeMirror.fromTextArea(ta, {
