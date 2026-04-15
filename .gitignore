@@ -9,3 +9,5 @@ credentials.json
 *.log
 .claude/
 .remember/
+renderer.js.bak
+scripts/split-renderer.js

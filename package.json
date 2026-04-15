@@ -22,6 +22,9 @@
     "build": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
+    "build:renderer": "node scripts/build-renderer.js",
+    "watch:renderer": "node scripts/build-renderer.js --watch",
+    "prestart": "node scripts/build-renderer.js",
     "test": "node --test test/main.test.js test/renderer.test.js test/security.test.js test/cli.test.js test/plugins.test.js test/ipc.test.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

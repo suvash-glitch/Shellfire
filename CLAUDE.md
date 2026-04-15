@@ -11,15 +11,20 @@ Shellfire is an AI-powered terminal multiplexer built with Electron. It provides
 ## Commands
 
 ```bash
-npm start             # Launch app in dev mode (electron .)
-npm run rebuild       # Rebuild native modules (node-pty) — required after npm install
-npm test              # Run all tests (Node.js built-in test runner)
-npm run lint          # ESLint check
-npm run lint:fix      # ESLint auto-fix
-npm run build         # Build macOS distributable (.dmg, .zip)
-npm run build:win     # Build Windows distributable (.exe, .zip)
-npm run build:linux   # Build Linux distributable (.AppImage, .deb)
+npm start                   # Build renderer + launch app in dev mode (electron .)
+npm run build:renderer      # Regenerate renderer.js from src/renderer/ modules
+npm run watch:renderer      # Rebuild renderer.js on every src/renderer/ change
+npm run rebuild             # Rebuild native modules (node-pty) — required after npm install
+npm test                    # Run all 133 tests (Node.js built-in test runner)
+npm run lint                # ESLint check
+npm run lint:fix            # ESLint auto-fix
+npm run build               # Build macOS distributable (.dmg, .zip)
+npm run build:win           # Build Windows distributable (.exe, .zip)
+npm run build:linux         # Build Linux distributable (.AppImage, .deb)
 ```
+
+**Editing renderer modules:**  
+Edit files in `src/renderer/`, then `npm run build:renderer` to regenerate `renderer.js`. The `prestart` hook runs this automatically so `npm start` always uses fresh modules.
 
 ---
 
@@ -44,9 +49,42 @@ Shellfire follows Electron's two-process model with strict context isolation.
 | `src/main/plugin-system.js` | Plugin load/install/uninstall, marketplace registry, .termext packaging |
 | `src/main/window-manager.js` | BrowserWindow creation, auto-updater, zen mode, zoom, window controls |
 
-### Renderer (`renderer.js`)
+### Renderer (`src/renderer/` + generated `renderer.js`)
 
-> **v3 refactor in progress** — currently a single file (~7k lines). Planned split into `src/renderer/` modules: `pane-manager`, `layout-manager`, `theme-manager`, `command-palette`, `terminal-manager`, `extension-runtime`.
+`renderer.js` is **generated** — edit the source modules in `src/renderer/`, then run `npm run build:renderer`. The `prestart` hook runs the build automatically before `npm start`.
+
+| Module | Lines | What it does |
+|--------|-------|--------------|
+| `010-state.js` | 34 | All shared mutable state (panes, layout, settings…) |
+| `020-extension-api.js` | 54 | `window._termExt` — legacy extension API surface |
+| `030-themes.js` | 72 | Built-in theme data (6 themes + pane color presets) |
+| `040-utils.js` | 40 | `escHtml`, `showToast`, `launchClaude` helpers |
+| `050-theme-manager.js` | 196 | `applyTheme()`, `applyZoom()`, `setFontSize()` |
+| `060-layout.js` | 74 | Grid layout, fit/resize panes |
+| `070-pane-manager.js` | 554 | `createPaneObj()`, `addTerminal()`, `removeTerminal()`, `setActive()` |
+| `080-ipc.js` | 47 | `terminal-data`, `terminal-exit` IPC handlers |
+| `090-ui.js` | 236 | Search bar, context menu, snippets, profiles |
+| `100-command-palette.js` | 139 | Command palette (Cmd+P) |
+| `110-session.js` | 213 | Save/restore session |
+| `120-tab-bar.js` | 167 | Pane numbers, tab bar, updateTabBar |
+| `130-tools.js` | 360 | Cron, recent dirs, fuzzy find, smart paste, drag, quick bar |
+| `140-handlers.js` | 279 | Button handlers, keyboard shortcuts, keyword watcher |
+| `150-ssh.js` | 359 | SSH bookmarks + remote connection |
+| `160-panels.js` | 551 | System monitor, logging, floating pane, notes, env vars, Docker, ports, AI error detection |
+| `165-marketplace.js` | 292 | Extension marketplace UI |
+| `170-pipeline.js` | 609 | Pipeline visual editor (node graph) |
+| `180-bookmarks.js` | 147 | Command bookmarks |
+| `185-url-command-tab.js` | 485 | URL preview, command duration, smart tab names, dir bookmarks, watch mode, cross-pane search, file preview |
+| `190-ide-zen.js` | 337 | IDE mode, zen mode, enhanced tab bar |
+| `200-settings.js` | 404 | Settings UI, keybinding editor, onboarding |
+| `210-resize.js` | 24 | Resize/cleanup lifecycle |
+| `220-plugin-system.js` | 270 | Plugin loading, activation, deactivation |
+| `230-secrets.js` | 114 | Secrets vault UI |
+| `240-status-bar.js` | 158 | Status bar widgets (clock, k8s, AWS, node) + enhanced PiP |
+| `250-quick-actions.js` | 172 | Quick actions on terminal output |
+| `260-startup-tasks.js` | 189 | Startup tasks UI |
+| `270-init.js` | 247 | App init, PTY reattach, auto-save, session restore |
+| `280-expose.js` | 101 | `window.__panes` etc. for socket server + auto-update UI |
 
 ### Preload (`preload.js`)
 
