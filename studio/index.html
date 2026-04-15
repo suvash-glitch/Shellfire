@@ -2,559 +2,1068 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Shellfire Studio</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/one-dark.min.css"/>
 <style>
-/* ── Tokens ─────────────────────────────────────────────────── */
+/* ───────────────────────────────────────────────────────────────
+   DESIGN TOKENS
+─────────────────────────────────────────────────────────────── */
 :root {
-  --bg:       #09090b;
-  --panel:    #0f0f12;
-  --raised:   #18181b;
-  --hover:    #1e1e22;
-  --border:   #27272a;
-  --border2:  #3f3f46;
-  --text:     #fafafa;
-  --text2:    #a1a1aa;
-  --text3:    #52525b;
-  --flame:    #f97316;
-  --flame-bg: rgba(249,115,22,.09);
-  --flame-bd: rgba(249,115,22,.28);
-  --green:    #22c55e;
-  --green-bg: rgba(34,197,94,.09);
-  --red:      #ef4444;
-  --red-bg:   rgba(239,68,68,.09);
-  --amber:    #f59e0b;
-  --blue:     #3b82f6;
-  --r:        6px;
-  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-  --mono: "SF Mono", ui-monospace, "Menlo", monospace;
-  --header: 46px;
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; overflow: hidden; -webkit-font-smoothing: antialiased; }
-button { font-family: var(--font); cursor: pointer; font-size: 12.5px; }
-::selection { background: rgba(249,115,22,.22); }
-a { color: var(--flame); }
+  --c-bg:        #0c0c0e;
+  --c-panel:     #141417;
+  --c-raised:    #1c1c20;
+  --c-hover:     #242428;
+  --c-active:    #2a2a2f;
+  --c-border:    #28282c;
+  --c-border2:   #3a3a3f;
 
-/* ── Header ─────────────────────────────────────────────────── */
-#header {
-  height: var(--header);
-  background: rgba(9,9,11,.92); backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center;
-  -webkit-app-region: drag;
-  flex-shrink: 0; z-index: 100; position: relative;
-  padding-left: 76px;
+  --c-text:      #e8e8ea;
+  --c-text2:     #8a8a90;
+  --c-text3:     #4a4a52;
+
+  --c-flame:     #f97316;
+  --c-flame2:    #fb923c;
+  --c-fbg:       rgba(249,115,22,.1);
+  --c-fbd:       rgba(249,115,22,.25);
+
+  --c-green:     #22c55e;
+  --c-gbg:       rgba(34,197,94,.1);
+  --c-gbd:       rgba(34,197,94,.25);
+
+  --c-red:       #ef4444;
+  --c-rbg:       rgba(239,68,68,.1);
+  --c-rbd:       rgba(239,68,68,.25);
+
+  --c-blue:      #3b82f6;
+  --c-amber:     #f59e0b;
+
+  --r:      5px;
+  --font:   -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  --mono:   "SF Mono", ui-monospace, "Menlo", "Cascadia Code", monospace;
+
+  /* Layout */
+  --header-h:   42px;
+  --status-h:   22px;
+  --activity-w: 44px;
+  --sidebar-w:  224px;
+  --panel-w:    420px;
+  --tabs-h:     35px;
 }
-.hlogo {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 14px; font-weight: 700; letter-spacing: -.02em;
-  color: var(--text); padding: 0 16px;
+
+/* ───────────────────────────────────────────────────────────────
+   RESET
+─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+button { font-family: var(--font); cursor: pointer; border: none; background: none; color: inherit; font-size: 12.5px; }
+input  { font-family: var(--font); }
+::selection { background: rgba(249,115,22,.2); }
+:focus-visible { outline: 1.5px solid var(--c-flame); outline-offset: 1px; border-radius: 3px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-border2); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-text3); }
+
+/* ───────────────────────────────────────────────────────────────
+   APP SHELL
+─────────────────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   HEADER
+─────────────────────────────────────────────────────────────── */
+#header {
+  height: var(--header-h);
+  flex-shrink: 0;
+  background: var(--c-panel);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  -webkit-app-region: drag;
+  z-index: 200;
+  /* macOS traffic lights */
+  padding-left: 74px;
+}
+
+.h-logo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  color: var(--c-text);
+  padding: 0 14px 0 10px;
   -webkit-app-region: no-drag;
   flex-shrink: 0;
 }
-.hlogo svg { width: 19px; height: 19px; }
-.hlogo .fire { color: var(--flame); }
-.hdiv { width: 1px; height: 26px; background: var(--border); flex-shrink: 0; }
+.h-logo svg { width: 18px; height: 18px; flex-shrink: 0; }
+.h-logo .fire { color: var(--c-flame); }
 
-/* Left header group: new buttons */
-.h-left { display: flex; align-items: center; gap: 4px; padding: 0 10px; -webkit-app-region: no-drag; }
+.h-div { width: 1px; height: 22px; background: var(--c-border); flex-shrink: 0; }
 
-/* Center: file path */
-.h-center { flex: 1; display: flex; align-items: center; justify-content: center; -webkit-app-region: no-drag; }
-#folder-crumb { font-size: 12px; color: var(--text3); font-family: var(--mono); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Right header group */
-.h-right { display: flex; align-items: center; gap: 6px; padding: 0 14px; -webkit-app-region: no-drag; }
-
-/* Buttons */
-.hbtn {
-  padding: 4px 12px; border-radius: var(--r);
-  border: 1px solid var(--border); background: var(--raised); color: var(--text2);
-  transition: border-color .14s, color .14s, background .14s;
+.h-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
 }
-.hbtn:hover { border-color: var(--border2); color: var(--text); background: var(--hover); }
-.hbtn.primary { background: var(--flame); border-color: var(--flame); color: #fff; font-weight: 600; }
-.hbtn.primary:hover { background: #ea580c; }
-.hbtn.ap-on { background: var(--green-bg); border-color: rgba(34,197,94,.3); color: var(--green); }
-.hbtn.ap-off { opacity: .45; pointer-events: none; }
+.h-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r);
+  color: var(--c-text2);
+  font-size: 12.5px;
+  transition: color .12s, background .12s;
+  white-space: nowrap;
+}
+.h-btn:hover { color: var(--c-text); background: var(--c-hover); }
+.h-btn .hb-icon { font-size: 13px; }
 
-/* Connection pill */
-.conn-pill { display: flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid; transition: all .2s; }
-.conn-pill.on  { background: var(--green-bg); border-color: rgba(34,197,94,.3); color: var(--green); }
-.conn-pill.off { background: rgba(82,82,91,.1); border-color: rgba(82,82,91,.2); color: var(--text3); }
-.conn-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.h-crumb {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--c-text3);
+  font-family: var(--mono);
+  overflow: hidden;
+  -webkit-app-region: drag;
+}
+#crumb-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
 
-/* ── Body ────────────────────────────────────────────────────── */
-#body { display: flex; height: calc(100vh - var(--header)); overflow: hidden; }
+.h-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  -webkit-app-region: no-drag;
+}
 
-/* ── Dividers ────────────────────────────────────────────────── */
-.resize-divider {
-  width: 4px; background: transparent; cursor: col-resize; flex-shrink: 0;
+/* Connection badge */
+.conn-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.conn-badge.on  { background: var(--c-gbg); border-color: var(--c-gbd); color: var(--c-green); }
+.conn-badge.off { background: rgba(74,74,82,.1); border-color: rgba(74,74,82,.2); color: var(--c-text3); }
+.conn-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+/* Primary + secondary action buttons */
+.h-push {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border-radius: var(--r);
+  background: var(--c-flame);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: background .14s, transform .08s;
+}
+.h-push:hover { background: var(--c-flame2); }
+.h-push:active { transform: scale(.97); }
+
+.h-auto {
+  padding: 4px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--c-border2);
+  background: var(--c-raised);
+  color: var(--c-text2);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all .14s;
+}
+.h-auto:hover { border-color: var(--c-border2); color: var(--c-text); background: var(--c-active); }
+.h-auto.active { background: var(--c-gbg); border-color: var(--c-gbd); color: var(--c-green); }
+
+.h-popout {
+  padding: 4px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--c-border);
+  background: var(--c-raised);
+  color: var(--c-text2);
+  font-size: 12px;
+  transition: all .14s;
+}
+.h-popout:hover { border-color: var(--c-flame); color: var(--c-flame); }
+.h-popout.open  { border-color: var(--c-fbd); background: var(--c-fbg); color: var(--c-flame); }
+
+/* ───────────────────────────────────────────────────────────────
+   MAIN BODY
+─────────────────────────────────────────────────────────────── */
+#body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   ACTIVITY BAR
+─────────────────────────────────────────────────────────────── */
+#activity-bar {
+  width: var(--activity-w);
+  flex-shrink: 0;
+  background: var(--c-panel);
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0;
+  gap: 2px;
+  z-index: 10;
+}
+.ab-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  color: var(--c-text3);
+  transition: color .12s, background .12s;
+  position: relative;
+}
+.ab-btn:hover { color: var(--c-text2); background: var(--c-hover); }
+.ab-btn.active { color: var(--c-text); background: var(--c-active); }
+.ab-btn.active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 20px;
+  background: var(--c-flame);
+  border-radius: 0 2px 2px 0;
+}
+.ab-btn[data-badge]::after {
+  content: attr(data-badge);
+  position: absolute;
+  top: 3px; right: 3px;
+  background: var(--c-flame);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.ab-spacer { flex: 1; }
+
+/* ───────────────────────────────────────────────────────────────
+   SIDEBAR
+─────────────────────────────────────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--c-panel);
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 150px;
+  max-width: 400px;
+}
+
+/* Sidebar panels */
+.sb-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.sb-panel.active { display: flex; }
+
+/* File explorer */
+.sb-header {
+  padding: 8px 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--c-text3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--c-border);
+}
+.sb-header-actions { display: flex; gap: 2px; }
+.sb-icon-btn {
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  color: var(--c-text3);
+  transition: color .12s, background .12s;
+}
+.sb-icon-btn:hover { color: var(--c-text2); background: var(--c-hover); }
+
+.file-tree { flex: 1; overflow-y: auto; }
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--c-text2);
+  border-left: 2px solid transparent;
+  transition: background .1s, color .1s;
+  user-select: none;
+}
+.file-row:hover { background: var(--c-hover); color: var(--c-text); }
+.file-row.active { background: var(--c-active); color: var(--c-text); border-left-color: var(--c-flame); }
+.file-row .fr-icon { font-family: var(--mono); font-size: 10px; color: var(--c-text3); flex-shrink: 0; width: 18px; }
+.file-row .fr-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-row .fr-dirty { color: var(--c-flame); font-size: 7px; flex-shrink: 0; }
+
+/* Installed section */
+.inst-section { flex-shrink: 0; border-top: 1px solid var(--c-border); }
+.inst-row {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inst-row:last-child { border: none; }
+.inst-info { flex: 1; min-width: 0; }
+.inst-name { font-size: 12.5px; color: var(--c-text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inst-meta { font-size: 10.5px; color: var(--c-text3); margin-top: 1px; }
+.inst-del { color: var(--c-text3); font-size: 13px; padding: 2px 5px; border-radius: 3px; transition: color .12s, background .12s; flex-shrink: 0; }
+.inst-del:hover { color: var(--c-red); background: var(--c-rbg); }
+
+.empty-msg { padding: 16px 12px; font-size: 12px; color: var(--c-text3); text-align: center; line-height: 1.5; }
+
+/* Sidebar footer */
+.sb-footer {
+  flex-shrink: 0;
+  padding: 8px;
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sb-footer-btn {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--c-border);
+  background: var(--c-raised);
+  color: var(--c-text2);
+  font-size: 12px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color .14s, color .14s;
+}
+.sb-footer-btn:hover { border-color: var(--c-flame); color: var(--c-text); }
+
+/* ───────────────────────────────────────────────────────────────
+   RESIZE HANDLES
+─────────────────────────────────────────────────────────────── */
+.resize-h {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  flex-shrink: 0;
   transition: background .15s;
+  position: relative;
+  z-index: 5;
 }
-.resize-divider:hover, .resize-divider:active { background: var(--flame); }
-
-/* ── File sidebar ─────────────────────────────────────────────── */
-#filesidebar {
-  width: 220px; flex-shrink: 0;
-  background: var(--panel); border-right: 1px solid var(--border);
-  display: flex; flex-direction: column; overflow: hidden;
-  min-width: 160px; max-width: 380px;
+.resize-h:hover, .resize-h.dragging { background: var(--c-flame); }
+.resize-v {
+  height: 4px;
+  background: transparent;
+  cursor: row-resize;
+  flex-shrink: 0;
+  transition: background .15s;
+  position: relative;
+  z-index: 5;
 }
-.sb-section { padding: 9px 12px 5px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--text3); display: flex; align-items: center; justify-content: space-between; }
-.sb-sec-btn { background: none; border: none; color: var(--text3); font-size: 15px; padding: 0 1px; line-height: 1; transition: color .12s; }
-.sb-sec-btn:hover { color: var(--flame); }
+.resize-v:hover, .resize-v.dragging { background: var(--c-flame); }
 
-.file-list { flex: 1; overflow-y: auto; min-height: 60px; }
-.file-item { display: flex; align-items: center; gap: 7px; padding: 5px 12px; cursor: pointer; font-size: 12.5px; color: var(--text2); border-left: 2px solid transparent; transition: background .1s, color .1s; }
-.file-item:hover { background: var(--hover); color: var(--text); }
-.file-item.active { background: var(--flame-bg); color: var(--flame); border-left-color: var(--flame); }
-.file-item .fic { font-size: 11px; flex-shrink: 0; font-family: var(--mono); }
-.file-item .fn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-item .fd { color: var(--flame); font-size: 8px; }
+/* ───────────────────────────────────────────────────────────────
+   EDITOR COLUMN
+─────────────────────────────────────────────────────────────── */
+#editor-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-bg);
+  overflow: hidden;
+}
 
-.inst-item { padding: 6px 12px; border-bottom: 1px solid var(--border); }
-.inst-item:last-child { border: none; }
-.inst-name { font-size: 12.5px; color: var(--text); font-weight: 500; }
-.inst-meta { font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-.inst-del { background: none; border: none; color: var(--text3); font-size: 11px; padding: 0; margin-left: auto; cursor: pointer; transition: color .12s; }
-.inst-del:hover { color: var(--red); }
-.empty-installed { padding: 8px 12px; font-size: 12px; color: var(--text3); }
+/* Tab strip */
+#tab-strip {
+  height: var(--tabs-h);
+  flex-shrink: 0;
+  display: flex;
+  background: var(--c-panel);
+  border-bottom: 1px solid var(--c-border);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+#tab-strip::-webkit-scrollbar { height: 0; }
 
-.sb-actions { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
-.sb-action-btn { padding: 5px 10px; border-radius: var(--r); border: 1px solid var(--border); background: var(--raised); color: var(--text2); font-size: 12px; width: 100%; text-align: left; transition: border-color .14s; }
-.sb-action-btn:hover { border-color: var(--flame); color: var(--text); }
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 12px;
+  height: 100%;
+  font-size: 12.5px;
+  color: var(--c-text2);
+  border-right: 1px solid var(--c-border);
+  cursor: pointer;
+  transition: color .1s, background .1s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  user-select: none;
+}
+.tab:hover { color: var(--c-text); background: var(--c-hover); }
+.tab.active {
+  color: var(--c-text);
+  background: var(--c-bg);
+}
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--c-flame);
+}
+.tab-icon { font-family: var(--mono); font-size: 10.5px; color: var(--c-text3); }
+.tab-name { display: flex; align-items: center; gap: 4px; line-height: 1; }
+.tab-dirty { color: var(--c-flame); font-size: 7px; }
+.tab-close {
+  opacity: 0;
+  width: 18px; height: 18px;
+  border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  color: var(--c-text3);
+  transition: opacity .1s, color .1s, background .1s;
+}
+.tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+.tab-close:hover { color: var(--c-text); background: var(--c-hover); }
 
-/* ── Editor ──────────────────────────────────────────────────── */
-#editor-col { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+/* Breadcrumb */
+#breadcrumb {
+  height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 11.5px;
+  color: var(--c-text3);
+  font-family: var(--mono);
+  background: var(--c-bg);
+  border-bottom: 1px solid var(--c-border);
+  gap: 4px;
+  overflow: hidden;
+}
+#breadcrumb span { color: var(--c-text2); }
+#breadcrumb .bc-sep { color: var(--c-text3); }
 
-#tab-bar { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; min-height: 36px; }
-#tab-bar::-webkit-scrollbar { height: 0; }
-.etab { display: flex; align-items: center; gap: 6px; padding: 0 12px; height: 36px; font-size: 12.5px; color: var(--text2); border-right: 1px solid var(--border); cursor: pointer; transition: background .1s; white-space: nowrap; flex-shrink: 0; }
-.etab:hover { background: var(--hover); color: var(--text); }
-.etab.active { color: var(--text); background: var(--bg); border-bottom: 2px solid var(--flame); }
-.etab .tico { font-family: var(--mono); font-size: 11px; }
-.etab .tname { display: flex; align-items: center; gap: 4px; }
-.etab .tdirty { color: var(--flame); font-size: 8px; }
-.etab .tclose { background: none; border: none; color: var(--text3); font-size: 12px; padding: 2px 3px; border-radius: 3px; opacity: 0; transition: opacity .1s, background .1s, color .1s; }
-.etab:hover .tclose { opacity: 1; }
-.etab .tclose:hover { background: var(--hover); color: var(--text); }
+/* Monaco container */
+#monaco-wrap { flex: 1; min-height: 0; position: relative; }
+#monaco-container { width: 100%; height: 100%; }
 
-#editor-wrap { flex: 1; overflow: hidden; position: relative; }
-#empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 10px; color: var(--text3); }
-#empty-state .big { font-size: 40px; }
-#empty-state h2 { font-size: 16px; font-weight: 600; color: var(--text2); margin-top: 4px; }
-#empty-state p { font-size: 12.5px; color: var(--text3); }
-#empty-state .es-btns { display: flex; gap: 8px; margin-top: 8px; }
-#empty-state .es-btn { padding: 7px 16px; border-radius: var(--r); border: 1px solid var(--border2); background: var(--raised); color: var(--text2); transition: border-color .14s; }
-#empty-state .es-btn:hover { border-color: var(--flame); color: var(--text); }
+/* Empty state */
+#empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--c-text3);
+}
+#empty-state .es-logo { font-size: 48px; }
+#empty-state h2 { font-size: 18px; font-weight: 700; color: var(--c-text2); letter-spacing: -.02em; }
+#empty-state p { font-size: 13px; color: var(--c-text3); }
+.es-cards {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.es-card {
+  padding: 10px 20px;
+  border-radius: var(--r);
+  border: 1px solid var(--c-border2);
+  background: var(--c-raised);
+  color: var(--c-text2);
+  font-size: 13px;
+  transition: border-color .14s, color .14s, background .14s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.es-card:hover { border-color: var(--c-flame); color: var(--c-text); background: var(--c-active); }
+.kb-grid {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 6px 20px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.kb-grid .kk { font-family: var(--mono); font-size: 11px; background: var(--c-raised); border: 1px solid var(--c-border2); padding: 2px 7px; border-radius: 4px; color: var(--c-text2); }
+.kb-grid .kl { color: var(--c-text3); }
 
-/* CodeMirror */
-.CodeMirror { height: 100% !important; font-family: var(--mono) !important; font-size: 13.5px !important; line-height: 1.72 !important; background: #0c0c0f !important; color: #abb2bf !important; }
-.CodeMirror-scroll { padding-bottom: 120px; }
-.CodeMirror-gutters { background: #0c0c0f !important; border-right: 1px solid #222226 !important; min-width: 44px; }
-.CodeMirror-linenumber { color: #3f3f46 !important; padding: 0 14px !important; }
-.CodeMirror-cursor { border-left: 2px solid #f97316 !important; }
-.CodeMirror-selected, .CodeMirror-line ::selection { background: rgba(249,115,22,.16) !important; }
-.CodeMirror-focused .CodeMirror-selected { background: rgba(249,115,22,.16) !important; }
-.CodeMirror-matchingbracket { color: #f97316 !important; font-weight: bold; outline: 1px solid rgba(249,115,22,.35); }
-.CodeMirror-activeline-background { background: rgba(255,255,255,.025) !important; }
-/* Inlined one-dark tokens */
-.cm-s-one-dark.CodeMirror { background: #0c0c0f !important; color: #abb2bf !important; }
-.cm-s-one-dark .cm-keyword    { color: #c678dd !important; }
-.cm-s-one-dark .cm-atom       { color: #d19a66 !important; }
-.cm-s-one-dark .cm-number     { color: #d19a66 !important; }
-.cm-s-one-dark .cm-def        { color: #e06c75 !important; }
-.cm-s-one-dark .cm-variable   { color: #e06c75 !important; }
-.cm-s-one-dark .cm-variable-2 { color: #e5c07b !important; }
-.cm-s-one-dark .cm-variable-3 { color: #56b6c2 !important; }
-.cm-s-one-dark .cm-property   { color: #abb2bf !important; }
-.cm-s-one-dark .cm-operator   { color: #56b6c2 !important; }
-.cm-s-one-dark .cm-comment    { color: #5c6370 !important; font-style: italic !important; }
-.cm-s-one-dark .cm-string     { color: #98c379 !important; }
-.cm-s-one-dark .cm-string-2   { color: #98c379 !important; }
-.cm-s-one-dark .cm-meta       { color: #abb2bf !important; }
-.cm-s-one-dark .cm-builtin    { color: #e5c07b !important; }
-.cm-s-one-dark .cm-bracket    { color: #abb2bf !important; }
-.cm-s-one-dark .cm-tag        { color: #e06c75 !important; }
-.cm-s-one-dark .cm-attribute  { color: #d19a66 !important; }
-.cm-s-one-dark .cm-link       { color: #61afef !important; }
-.cm-s-one-dark .cm-error      { color: #f44747 !important; }
-.cm-s-one-dark .CodeMirror-gutters     { background: #0c0c0f !important; border-right: 1px solid #222226 !important; }
-.cm-s-one-dark .CodeMirror-linenumber { color: #3f3f46 !important; }
-.cm-s-one-dark .CodeMirror-cursor     { border-left: 2px solid #f97316 !important; }
-.cm-s-one-dark .CodeMirror-activeline-background { background: rgba(255,255,255,.025) !important; }
+/* Bottom panel */
+#bottom-panel {
+  flex-shrink: 0;
+  background: var(--c-panel);
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  height: 200px;
+  min-height: 80px;
+  max-height: 500px;
+}
+.bp-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 8px;
+  gap: 2px;
+}
+.bp-tab {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--c-text3);
+  border-radius: 4px;
+  transition: color .12s, background .12s;
+}
+.bp-tab:hover { color: var(--c-text2); }
+.bp-tab.active { color: var(--c-text); background: var(--c-active); }
+.bp-tab-close {
+  margin-left: auto;
+  padding: 2px 6px;
+  color: var(--c-text3);
+  border-radius: 4px;
+  transition: color .12s, background .12s;
+  font-size: 13px;
+}
+.bp-tab-close:hover { color: var(--c-text2); background: var(--c-hover); }
+.bp-pane { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.bp-pane.active { display: flex; }
 
-/* Status strip below editor */
-#status-strip { height: 24px; background: var(--panel); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 12px; flex-shrink: 0; font-size: 11px; }
-.status-msg { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.status-msg.ok    { color: var(--green); }
-.status-msg.warn  { color: var(--amber); }
-.status-msg.error { color: var(--red); }
-.status-msg.info  { color: var(--text3); }
-#preview-badge { padding: 1px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 600; }
-#preview-badge.live  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,.25); }
-#preview-badge.error { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(239,68,68,.25); }
-#preview-badge.idle  { background: rgba(82,82,91,.1); color: var(--text3); border: 1px solid rgba(82,82,91,.2); }
+/* Console */
+#console-out {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.65;
+  background: #090909;
+}
+.log-row { display: flex; gap: 10px; padding: 1px 0; }
+.log-ts  { color: var(--c-text3); flex-shrink: 0; font-size: 10.5px; margin-top: 1px; }
+.log-msg { flex: 1; white-space: pre-wrap; word-break: break-word; }
+.log-info  { color: var(--c-text2); }
+.log-ok    { color: var(--c-green); }
+.log-warn  { color: var(--c-amber); }
+.log-error { color: var(--c-red); }
 
-/* ── Right column ─────────────────────────────────────────────── */
-#right-col { width: 480px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--border); min-width: 280px; max-width: 700px; }
+#console-input-row {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--c-border);
+  flex-shrink: 0;
+  background: #090909;
+}
+#console-prompt { padding: 0 10px; color: var(--c-text3); font-family: var(--mono); font-size: 12px; flex-shrink: 0; }
+#console-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--c-text);
+  padding: 7px 4px;
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+}
+#console-input::placeholder { color: var(--c-text3); }
 
-.rtabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.rtab { flex: 1; text-align: center; padding: 9px 6px; font-size: 12.5px; color: var(--text2); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; }
-.rtab:hover { color: var(--text); }
-.rtab.active { color: var(--text); border-bottom-color: var(--flame); }
+/* ───────────────────────────────────────────────────────────────
+   RIGHT PANEL — PREVIEW
+─────────────────────────────────────────────────────────────── */
+#right-panel {
+  width: var(--panel-w);
+  flex-shrink: 0;
+  background: var(--c-panel);
+  border-left: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 260px;
+  max-width: 700px;
+}
 
-.rpane { display: none; flex: 1; flex-direction: column; overflow: hidden; }
-.rpane.active { display: flex; }
+.rp-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 6px;
+  gap: 2px;
+}
+.rp-tab {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  color: var(--c-text3);
+  border-radius: 4px;
+  transition: color .12s, background .12s;
+}
+.rp-tab:hover { color: var(--c-text2); background: var(--c-hover); }
+.rp-tab.active { color: var(--c-text); background: var(--c-active); }
+.rp-tab-actions { margin-left: auto; display: flex; gap: 4px; }
+.rp-icon-btn {
+  width: 26px; height: 26px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  color: var(--c-text3);
+  transition: color .12s, background .12s;
+}
+.rp-icon-btn:hover { color: var(--c-text2); background: var(--c-hover); }
 
-/* ── Virtual Shellfire preview (embedded) ─────────────────────── */
-#preview-pane { position: relative; }
-.pv-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.pv-toolbar span { font-size: 11.5px; color: var(--text3); }
-.pv-btn { padding: 3px 9px; border-radius: 4px; border: 1px solid var(--border); background: var(--raised); color: var(--text2); font-size: 11px; transition: border-color .14s; }
-.pv-btn:hover { border-color: var(--flame); color: var(--flame); }
-#pv-viewport { flex: 1; background: #050507; overflow: hidden; position: relative; }
-#pv-frame {
-  position: absolute; transform-origin: top left;
-  width: 1100px; height: 720px;
-  background: #0f0f10;
-  font-family: var(--font); font-size: 13px;
+.rp-pane { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.rp-pane.active { display: flex; }
+
+/* Preview viewport */
+#preview-viewport {
+  flex: 1;
+  background: #060608;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Virtual Shellfire frame */
+#sf-preview {
+  position: absolute;
+  transform-origin: top left;
+  width: 1200px; height: 780px;
+  background: #0e0e11;
   display: flex; flex-direction: column;
-  border-radius: 3px; overflow: hidden;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.05);
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.06);
 }
-
-/* Shellfire chrome inside preview */
-.sf-header { height: 44px; background: rgba(12,12,15,.97); border-bottom: 1px solid #1f1f22; display: flex; align-items: center; padding: 0 14px; gap: 10px; flex-shrink: 0; }
-.sf-logo { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: #fafafa; flex-shrink: 0; }
-.sf-logo svg { width: 17px; height: 17px; }
-.sf-logo .fire { color: #f97316; }
-.sf-toolbar { display: flex; align-items: center; gap: 3px; }
-.sf-btn { width: 28px; height: 28px; border-radius: 5px; border: none; background: transparent; color: #52525b; font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .12s, color .12s; font-family: var(--font); }
-.sf-btn:hover { background: #1e1e22; color: #a1a1aa; }
-.sf-sep { width: 1px; height: 18px; background: #27272a; margin: 0 3px; }
-#sf-tb-ext { display: flex; align-items: center; gap: 3px; }
-.sf-statusbar { height: 26px; background: #0a0a0c; border-top: 1px solid #1f1f22; display: flex; align-items: center; padding: 0 12px; gap: 10px; flex-shrink: 0; }
-.sf-s-item { font-size: 11px; color: #3f3f46; display: flex; align-items: center; gap: 4px; cursor: default; }
-.sf-s-item .sdot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; }
-#sf-status-ext { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+/* SF chrome styles */
+.sf-hdr { height: 44px; background: #0e0e12; border-bottom: 1px solid #1e1e24; display: flex; align-items: center; padding: 0 14px; gap: 10px; flex-shrink: 0; }
+.sf-hdr-logo { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 700; color: #f0f0f0; flex-shrink: 0; }
+.sf-hdr-logo svg { width: 18px; height: 18px; }
+.sf-hdr-logo .fire { color: #f97316; }
+.sf-hdr-btns { display: flex; align-items: center; gap: 3px; }
+.sf-hdr-btn { width: 29px; height: 29px; border-radius: 5px; background: transparent; color: #4a4a55; font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: default; transition: background .12s, color .12s; }
+.sf-hdr-btn:hover { background: #1e1e24; color: #8a8a95; }
+.sf-hdr-sep { width: 1px; height: 18px; background: #28282e; margin: 0 3px; }
+#sf-tb-inject { display: flex; align-items: center; gap: 3px; }
 .sf-body { flex: 1; display: flex; overflow: hidden; }
-.sf-sidebar { width: 190px; background: #0d0d10; border-right: 1px solid #1f1f22; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
-.sf-sb-hdr { padding: 10px 12px 5px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: #3f3f46; }
-.sf-pane-item { padding: 5px 14px; font-size: 12px; color: #71717a; border-left: 2px solid transparent; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background .1s; }
-.sf-pane-item:hover { background: #181820; color: #a1a1aa; }
-.sf-pane-item.active { color: #fafafa; border-left-color: #f97316; background: rgba(249,115,22,.07); }
-.sf-pdot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
-#sf-panel-list { overflow-y: auto; }
+.sf-sb { width: 200px; background: #0c0c0f; border-right: 1px solid #1e1e24; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+.sf-sb-hdr { padding: 10px 12px 5px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #3a3a44; }
+.sf-sb-item { padding: 5px 14px; font-size: 12.5px; color: #5a5a66; border-left: 2px solid transparent; display: flex; align-items: center; gap: 8px; cursor: default; }
+.sf-sb-item.active { color: #e8e8ea; border-left-color: #f97316; background: rgba(249,115,22,.07); }
+.sf-sb-item .pdot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+.sf-sb-item .pdot.off { background: #3a3a44; }
+#sf-sb-ext { overflow-y: auto; }
 .sf-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.sf-content { flex: 1; display: flex; overflow: hidden; position: relative; }
-.sf-term { flex: 1; background: #09090b; padding: 14px 16px; font-family: var(--mono); font-size: 12px; line-height: 1.65; overflow-y: auto; color: #a1a1aa; }
-.sf-term .prompt { color: #3f3f46; }
-.sf-term .cmd    { color: #fafafa; }
-.sf-term .out    { color: #71717a; }
-/* Right panel */
-#sf-right-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 240px; background: #0d0d10; border-left: 1px solid #1f1f22; display: none; flex-direction: column; }
-#sf-right-panel.show { display: flex; }
-.sf-rp-hdr { padding: 10px 12px; font-size: 11.5px; font-weight: 600; color: #a1a1aa; border-bottom: 1px solid #1f1f22; display: flex; align-items: center; justify-content: space-between; }
-.sf-rp-close { background: none; border: none; color: #52525b; font-size: 15px; cursor: pointer; }
-.sf-rp-close:hover { color: #a1a1aa; }
-#sf-right-body { flex: 1; overflow-y: auto; padding: 10px 12px; font-size: 12px; color: #71717a; }
-/* Toast */
-.pv-toast { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); background: #18181b; border: 1px solid #3f3f46; color: #a1a1aa; font-size: 11px; padding: 5px 14px; border-radius: 20px; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; z-index: 99; }
+.sf-content-area { flex: 1; display: flex; overflow: hidden; position: relative; }
+.sf-terminal { flex: 1; background: #09090c; padding: 14px 18px; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; overflow-y: auto; color: #8a8a95; }
+.sf-terminal .pt { color: #3a3a44; }
+.sf-terminal .pc { color: #e8e8ea; }
+.sf-terminal .po { color: #5a5a66; }
+.sf-terminal .pb { color: #3b82f6; }
+.sf-cursor { display: inline-block; width: 7px; height: 13px; background: #f97316; animation: blink 1.1s step-end infinite; vertical-align: text-bottom; }
+@keyframes blink { 50% { opacity: 0; } }
+/* Extension right panel inside preview */
+#sf-rp { position: absolute; right: 0; top: 0; bottom: 0; width: 250px; background: #0c0c0f; border-left: 1px solid #1e1e24; display: none; flex-direction: column; }
+#sf-rp.vis { display: flex; }
+.sf-rp-hdr { padding: 10px 14px; font-size: 12px; font-weight: 600; color: #8a8a95; border-bottom: 1px solid #1e1e24; display: flex; align-items: center; justify-content: space-between; }
+.sf-rp-close { color: #4a4a55; font-size: 16px; cursor: pointer; transition: color .12s; }
+.sf-rp-close:hover { color: #8a8a95; }
+#sf-rp-content { flex: 1; overflow-y: auto; padding: 12px 14px; font-size: 12.5px; color: #5a5a66; }
+.sf-statusbar { height: 26px; background: #09090c; border-top: 1px solid #1e1e24; display: flex; align-items: center; padding: 0 14px; gap: 12px; flex-shrink: 0; }
+.sf-sb-seg { font-size: 11px; color: #3a3a44; display: flex; align-items: center; gap: 5px; cursor: default; }
+.sf-sb-seg .dot { width: 5px; height: 5px; border-radius: 50%; background: #22c55e; }
+#sf-status-inject { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+/* Preview toast */
+.pv-toast { position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%); background: rgba(28,28,32,.95); backdrop-filter: blur(8px); border: 1px solid var(--c-border2); color: #a0a0aa; font-size: 11.5px; font-family: var(--mono); padding: 6px 14px; border-radius: 20px; z-index: 99; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; }
 .pv-toast.show { opacity: 1; }
 
-/* ── Console pane ─────────────────────────────────────────────── */
-#console-pane { background: #09090b; }
-#console-out { flex: 1; overflow-y: auto; padding: 8px 12px; font-family: var(--mono); font-size: 12px; line-height: 1.65; }
-#console-out::-webkit-scrollbar { width: 4px; }
-#console-out::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.log-info  { color: var(--text2); padding: 1px 0; }
-.log-ok    { color: var(--green); }
-.log-warn  { color: var(--amber); }
-.log-error { color: var(--red); }
-.log-ts    { color: var(--text3); margin-right: 8px; font-size: 10.5px; }
-#console-input-row { display: flex; border-top: 1px solid var(--border); flex-shrink: 0; }
-#console-input { flex: 1; background: transparent; border: none; color: var(--text); padding: 8px 12px; font-family: var(--mono); font-size: 12px; outline: none; }
-#console-input::placeholder { color: var(--text3); }
-#console-send { background: var(--raised); border: none; border-left: 1px solid var(--border); color: var(--text2); padding: 8px 14px; transition: color .12s; }
-#console-send:hover { color: var(--text); }
-
-/* ── Shellfire connect pane ───────────────────────────────────── */
+/* Connect pane */
 #connect-pane { overflow-y: auto; }
 .cp-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-.cp-card { background: var(--raised); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; }
-.cp-card h3 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
-.cp-card p  { font-size: 12.5px; color: var(--text2); line-height: 1.55; }
-.sess-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
-.sess-item:last-child { border: none; }
-.sess-dot  { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
-.sess-name { font-weight: 500; color: var(--text); }
-.sess-proc { font-family: var(--mono); font-size: 11px; color: var(--text3); }
-.sess-cwd  { font-size: 11px; color: var(--text3); margin-left: auto; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cp-btn { width: 100%; padding: 7px; border-radius: var(--r); border: 1px solid var(--border); background: var(--hover); color: var(--text); font-size: 12.5px; margin-top: 8px; transition: border-color .14s; text-align: left; }
-.cp-btn:hover { border-color: var(--flame); }
+.cp-card { background: var(--c-raised); border: 1px solid var(--c-border); border-radius: var(--r); padding: 14px; }
+.cp-card h3 { font-size: 13px; font-weight: 600; color: var(--c-text); margin-bottom: 8px; }
+.cp-card p  { font-size: 12.5px; color: var(--c-text2); line-height: 1.6; }
+.sess-list { margin-top: 10px; display: flex; flex-direction: column; gap: 0; }
+.sess-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--c-border); font-size: 12.5px; }
+.sess-row:last-child { border: none; }
+.sess-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-green); flex-shrink: 0; }
+.sess-name { font-weight: 500; color: var(--c-text); }
+.sess-proc { color: var(--c-text3); font-family: var(--mono); font-size: 11px; }
+.sess-cwd  { color: var(--c-text3); font-size: 11px; margin-left: auto; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-btn { width: 100%; padding: 7px 12px; border-radius: var(--r); border: 1px solid var(--c-border); background: var(--c-hover); color: var(--c-text2); font-size: 12.5px; text-align: left; margin-top: 8px; transition: border-color .14s, color .14s; }
+.cp-btn:hover { border-color: var(--c-flame); color: var(--c-text); }
+.kb-list { display: flex; flex-direction: column; gap: 7px; margin-top: 2px; }
+.kb-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+.kb-action { color: var(--c-text2); }
+.kb-key { font-family: var(--mono); font-size: 10.5px; background: var(--c-raised); border: 1px solid var(--c-border2); padding: 2px 7px; border-radius: 4px; color: var(--c-text2); }
+
+/* ───────────────────────────────────────────────────────────────
+   STATUS BAR
+─────────────────────────────────────────────────────────────── */
+#status-bar {
+  height: var(--status-h);
+  flex-shrink: 0;
+  background: var(--c-flame);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+#status-bar.disconnected { background: #1c1c24; color: var(--c-text3); }
+#status-bar.error { background: var(--c-red); }
+.sb-item { padding: 0 8px; color: rgba(255,255,255,.85); display: flex; align-items: center; gap: 5px; cursor: default; transition: background .12s; border-radius: 3px; height: 18px; }
+#status-bar.disconnected .sb-item { color: var(--c-text3); }
+.sb-item:hover { background: rgba(255,255,255,.12); }
+.sb-sep { width: 1px; height: 12px; background: rgba(255,255,255,.2); margin: 0 2px; }
+#status-bar.disconnected .sb-sep { background: var(--c-border); }
+.sb-right { margin-left: auto; display: flex; align-items: center; gap: 0; }
+#preview-status { padding: 0 8px; height: 18px; border-radius: 3px; display: flex; align-items: center; gap: 5px; font-size: 11px; color: rgba(255,255,255,.75); }
+#preview-status .ps-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.7); }
+#preview-status.ps-error { color: var(--c-red); }
+#preview-status.ps-error .ps-dot { background: var(--c-red); }
+#preview-status.ps-idle { color: rgba(255,255,255,.4); }
+#preview-status.ps-idle .ps-dot { background: rgba(255,255,255,.3); }
+
+/* ───────────────────────────────────────────────────────────────
+   UTILITY
+─────────────────────────────────────────────────────────────── */
+.hidden { display: none !important; }
+code { font-family: var(--mono); font-size: .85em; background: var(--c-raised); padding: 1px 5px; border-radius: 3px; }
 </style>
 </head>
 <body>
+<div id="app">
 
-<!-- ── Header ─────────────────────────────────────────────────── -->
-<div id="header">
-  <div class="hlogo">
-    <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7.5 7 6 10.5 9 14c-1.5-.8-2.5-2.5-2.5-4C4.5 14.5 7 19 12 22c5-3 7.5-7.5 5.5-12.5-.8 1.5-2.5 3-4 3 3-3 2.5-7-1.5-10.5z" fill="#f97316"/></svg>
-    Shell<span class="fire">fire</span>&thinsp;Studio
-  </div>
-  <div class="hdiv"></div>
-
-  <div class="h-left">
-    <button class="hbtn" onclick="App.newProject('extension')">Extension</button>
-    <button class="hbtn" onclick="App.newProject('theme')">Theme</button>
-    <button class="hbtn" onclick="App.openFolder()">Open…</button>
-  </div>
-
-  <div class="h-center">
-    <span id="folder-crumb">No project open</span>
-  </div>
-
-  <div class="h-right">
-    <div class="conn-pill off" id="conn-pill">
-      <span class="conn-dot"></span>
-      <span id="conn-text">Disconnected</span>
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
+  <header id="header">
+    <div class="h-logo">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7.5 7 6 10.5 9 14c-1.5-.8-2.5-2.5-2.5-4C4.5 14.5 7 19 12 22c5-3 7.5-7.5 5.5-12.5-.8 1.5-2.5 3-4 3 3-3 2.5-7-1.5-10.5z" fill="#f97316"/></svg>
+      Shell<span class="fire">fire</span>&thinsp;Studio
     </div>
-    <button class="hbtn" id="auto-push-btn" onclick="App.toggleAutoPush()" title="Auto-push on save">⚡ Auto</button>
-    <button class="hbtn" id="popout-btn" onclick="App.popOutPreview()" title="⌘⇧P">⤢ Preview</button>
-    <button class="hbtn" onclick="App.saveActive()" title="⌘S">Save</button>
-    <button class="hbtn primary" onclick="App.pushToShellfire()" title="⌘⇧R">▶ Push Live</button>
-  </div>
-</div>
-
-<!-- ── Body ───────────────────────────────────────────────────── -->
-<div id="body">
-
-  <!-- File sidebar -->
-  <div id="filesidebar">
-    <div class="sb-section">
-      Files
-      <div style="display:flex;gap:2px">
-        <button class="sb-sec-btn" onclick="App.openFolder()" title="Open folder">📂</button>
-        <button class="sb-sec-btn" onclick="App.newFile()" title="New file">＋</button>
+    <div class="h-div"></div>
+    <div class="h-actions">
+      <button class="h-btn" onclick="App.newExt()" title="New extension">
+        <span class="hb-icon">⚡</span> Extension
+      </button>
+      <button class="h-btn" onclick="App.newTheme()" title="New theme">
+        <span class="hb-icon">🎨</span> Theme
+      </button>
+      <button class="h-btn" onclick="App.openFolder()" title="⌘O">
+        <span class="hb-icon">📂</span> Open
+      </button>
+    </div>
+    <div class="h-crumb"><span id="crumb-text">No project open</span></div>
+    <div class="h-right">
+      <div class="conn-badge off" id="conn-badge">
+        <span class="conn-dot"></span>
+        <span id="conn-text">Disconnected</span>
       </div>
+      <button class="h-auto" id="auto-btn" onclick="App.toggleAuto()">⚡ Auto</button>
+      <button class="h-popout" id="popout-btn" onclick="App.popout()">⤢ Preview</button>
+      <button class="h-push" onclick="App.push()">▶ Push Live</button>
     </div>
-    <div class="file-list" id="file-list">
-      <div style="padding:16px 12px;text-align:center;color:var(--text3);font-size:12px">
-        Open a project or create a new extension
-      </div>
+  </header>
+
+  <!-- ── BODY ───────────────────────────────────────────────── -->
+  <div id="body">
+
+    <!-- Activity bar -->
+    <div id="activity-bar">
+      <button class="ab-btn active" data-panel="files" onclick="switchActivity(this)" title="Explorer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 4h7l2 2h7v14H4z"/><path d="M4 4v14"/></svg>
+      </button>
+      <button class="ab-btn" data-panel="connect" onclick="switchActivity(this)" title="Shellfire Connection">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="2"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14M19.07 4.93a10 10 0 0 1 0 14.14M7.76 7.76a6 6 0 0 0 0 8.48M16.24 7.76a6 6 0 0 1 0 8.48"/></svg>
+      </button>
+      <div class="ab-spacer"></div>
+      <button class="ab-btn" onclick="App.openFolder()" title="Open Project">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </button>
     </div>
 
-    <div class="sb-section" style="margin-top:4px;border-top:1px solid var(--border);padding-top:10px">
-      Installed
-      <button class="sb-sec-btn" onclick="refreshInstalled()" title="Refresh">↺</button>
-    </div>
-    <div id="installed-list" style="overflow-y:auto;max-height:180px;flex-shrink:0;"></div>
-
-    <div class="sb-actions">
-      <button class="sb-action-btn" onclick="App.exportTermext()">📦 Export .termext</button>
-    </div>
-  </div>
-
-  <div id="h-divider" class="resize-divider"></div>
-
-  <!-- Editor -->
-  <div id="editor-col">
-    <div id="tab-bar"></div>
-    <div id="editor-wrap">
-      <div id="empty-state">
-        <div class="big">🔥</div>
-        <h2>Shellfire Studio</h2>
-        <p>Build extensions with live preview and hot deploy</p>
-        <div class="es-btns">
-          <button class="es-btn" onclick="App.newProject('extension')">New Extension</button>
-          <button class="es-btn" onclick="App.newProject('theme')">New Theme</button>
-          <button class="es-btn" onclick="App.openFolder()">Open Folder</button>
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <!-- Files panel -->
+      <div class="sb-panel active" id="panel-files">
+        <div class="sb-header">
+          Explorer
+          <div class="sb-header-actions">
+            <button class="sb-icon-btn" onclick="App.newFile()" title="New file">+</button>
+            <button class="sb-icon-btn" onclick="App.openFolder()" title="Open folder">⊕</button>
+          </div>
         </div>
-        <p style="margin-top:16px;font-size:11.5px">⌘S Save &nbsp;·&nbsp; ⌘O Open &nbsp;·&nbsp; ⌘⇧R Push Live &nbsp;·&nbsp; ⌘⇧P Pop Preview</p>
-      </div>
-    </div>
-    <div id="status-strip">
-      <span id="status-msg" class="status-msg info">Ready</span>
-      <span id="preview-badge" class="preview-badge idle">○ Idle</span>
-    </div>
-  </div>
-
-  <div id="r-divider" class="resize-divider"></div>
-
-  <!-- Right panel -->
-  <div id="right-col">
-    <div class="rtabs">
-      <button class="rtab active" onclick="switchR('preview',this)">🔥 Preview</button>
-      <button class="rtab" onclick="switchR('console',this)">📟 Console</button>
-      <button class="rtab" onclick="switchR('connect',this)">🔌 Shellfire</button>
-    </div>
-
-    <!-- Preview -->
-    <div class="rpane active" id="preview-pane">
-      <div class="pv-toolbar">
-        <span>Live Preview — extension renders here as you type</span>
-        <div style="margin-left:auto;display:flex;gap:5px">
-          <button class="pv-btn" onclick="EmbeddedPreview.reset();setPreviewBadge('idle')">↺</button>
-          <button class="pv-btn" onclick="document.getElementById('sf-right-panel').classList.toggle('show')">Panel</button>
-          <button class="pv-btn" onclick="App.popOutPreview()">⤢ Pop out</button>
+        <div class="file-tree" id="file-tree">
+          <div class="empty-msg">Open a project or create a new extension to get started.</div>
+        </div>
+        <div class="inst-section">
+          <div class="sb-header" style="cursor:default">
+            Installed
+            <button class="sb-icon-btn" onclick="refreshInstalled()" title="Refresh">↻</button>
+          </div>
+          <div id="inst-list" style="overflow-y:auto;max-height:160px"></div>
+        </div>
+        <div class="sb-footer">
+          <button class="sb-footer-btn" onclick="App.export()">📦 Export .termext</button>
         </div>
       </div>
-      <div id="pv-viewport">
-        <div id="pv-frame">
-          <!-- Header -->
-          <div class="sf-header">
-            <div class="sf-logo">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7.5 7 6 10.5 9 14c-1.5-.8-2.5-2.5-2.5-4C4.5 14.5 7 19 12 22c5-3 7.5-7.5 5.5-12.5-.8 1.5-2.5 3-4 3 3-3 2.5-7-1.5-10.5z" fill="#f97316"/></svg>
-              Shell<span class="fire">fire</span>
-            </div>
-            <div class="sf-toolbar">
-              <button class="sf-btn">⊞</button>
-              <button class="sf-btn">⤢</button>
-              <div class="sf-sep"></div>
-              <div id="sf-tb-ext"></div>
-            </div>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:3px">
-              <button class="sf-btn">📡</button>
-              <button class="sf-btn">⚙</button>
+
+      <!-- Connect panel -->
+      <div class="sb-panel" id="panel-connect">
+        <div class="sb-header">Shellfire v3</div>
+        <div style="flex:1;overflow-y:auto;padding:10px">
+          <div class="cp-card" style="margin-bottom:10px">
+            <h3>Connection</h3>
+            <p id="conn-detail" style="color:var(--c-text3)">Checking…</p>
+            <div class="sess-list" id="sess-list"></div>
+          </div>
+          <div class="cp-card" style="margin-bottom:10px">
+            <h3>Live Deploy</h3>
+            <p style="margin-bottom:8px">Push writes files to <code>~/.shellfire/plugins/</code> and hot-reloads the extension without restarting Shellfire.</p>
+            <button class="cp-btn" onclick="App.push()">▶ Push Live</button>
+            <button class="cp-btn" onclick="App.toggleAuto()" style="margin-top:4px">⚡ Toggle Auto-push</button>
+          </div>
+          <div class="cp-card">
+            <h3>Shortcuts</h3>
+            <div class="kb-list">
+              <div class="kb-row"><span class="kb-action">Push Live</span><span class="kb-key">⌘⇧R</span></div>
+              <div class="kb-row"><span class="kb-action">Save</span><span class="kb-key">⌘S</span></div>
+              <div class="kb-row"><span class="kb-action">Open Folder</span><span class="kb-key">⌘O</span></div>
+              <div class="kb-row"><span class="kb-action">Pop Preview</span><span class="kb-key">⌘⇧P</span></div>
+              <div class="kb-row"><span class="kb-action">Format</span><span class="kb-key">⌘⇧F</span></div>
             </div>
           </div>
-          <!-- Body -->
-          <div class="sf-body">
-            <div class="sf-sidebar">
-              <div class="sf-sb-hdr">Sessions</div>
-              <div class="sf-pane-item active"><span class="sf-pdot"></span>Terminal 1<span style="margin-left:auto;font-size:10px;color:#3f3f46">zsh</span></div>
-              <div class="sf-pane-item"><span class="sf-pdot"></span>api-server<span style="margin-left:auto;font-size:10px;color:#3f3f46">node</span></div>
-              <div class="sf-pane-item"><span class="sf-pdot" style="background:#3f3f46"></span>git-watch<span style="margin-left:auto;font-size:10px;color:#3f3f46">idle</span></div>
-              <div id="sf-panel-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resize-h" id="sb-resize"></div>
+
+    <!-- Editor column -->
+    <div id="editor-col">
+      <div id="tab-strip"></div>
+      <div id="breadcrumb"><span id="bc-file">—</span></div>
+      <div id="monaco-wrap">
+        <div id="empty-state">
+          <div class="es-logo">🔥</div>
+          <h2>Shellfire Studio</h2>
+          <p>AI-powered extension builder with live preview</p>
+          <div class="es-cards">
+            <button class="es-card" onclick="App.newExt()">⚡ New Extension</button>
+            <button class="es-card" onclick="App.newTheme()">🎨 New Theme</button>
+            <button class="es-card" onclick="App.openFolder()">📂 Open Project</button>
+          </div>
+          <div class="kb-grid" style="margin-top:20px;font-size:12px;color:var(--c-text3)">
+            <span class="kk">⌘S</span><span class="kl">Save</span>
+            <span class="kk">⌘⇧R</span><span class="kl">Push Live</span>
+            <span class="kk">⌘O</span><span class="kl">Open Folder</span>
+            <span class="kk">⌘⇧P</span><span class="kl">Pop-out Preview</span>
+          </div>
+        </div>
+        <div id="monaco-container" class="hidden"></div>
+      </div>
+      <div class="resize-v" id="bp-resize"></div>
+      <!-- Bottom panel -->
+      <div id="bottom-panel">
+        <div class="bp-tabs">
+          <button class="bp-tab active" onclick="switchBP('console',this)">Console</button>
+          <button class="bp-tab" onclick="switchBP('problems',this)">Problems</button>
+          <button class="bp-tab-close" onclick="toggleBottomPanel()">⌃</button>
+        </div>
+        <div class="bp-pane active" id="bp-console">
+          <div id="console-out"></div>
+          <div id="console-input-row">
+            <span id="console-prompt">❯</span>
+            <input id="console-input" placeholder="Send command to Shellfire session…" onkeydown="handleConsoleKey(event)"/>
+          </div>
+        </div>
+        <div class="bp-pane" id="bp-problems">
+          <div id="problems-out" style="flex:1;overflow-y:auto;padding:6px 14px;font-size:12px;color:var(--c-text3)">
+            No problems detected.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resize-h" id="rp-resize"></div>
+
+    <!-- Right panel -->
+    <div id="right-panel">
+      <div class="rp-tabs">
+        <button class="rp-tab active" onclick="switchRP('preview',this)">🔥 Live Preview</button>
+        <button class="rp-tab" onclick="switchRP('connect',this)">🔌 Sessions</button>
+        <div class="rp-tab-actions">
+          <button class="rp-icon-btn" onclick="EmbPreview.reset()" title="Reset preview">↺</button>
+          <button class="rp-icon-btn" onclick="document.getElementById('sf-rp').classList.toggle('vis')" title="Toggle panel">⊞</button>
+          <button class="rp-icon-btn" onclick="App.popout()" title="Pop out preview (⌘⇧P)">⤢</button>
+        </div>
+      </div>
+      <div class="rp-pane active" id="rp-preview">
+        <div id="preview-viewport">
+          <div id="sf-preview">
+            <!-- Shellfire header -->
+            <div class="sf-hdr">
+              <div class="sf-hdr-logo">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7.5 7 6 10.5 9 14c-1.5-.8-2.5-2.5-2.5-4C4.5 14.5 7 19 12 22c5-3 7.5-7.5 5.5-12.5-.8 1.5-2.5 3-4 3 3-3 2.5-7-1.5-10.5z" fill="#f97316"/></svg>
+                Shell<span class="fire">fire</span>
+              </div>
+              <div class="sf-hdr-btns">
+                <div class="sf-hdr-btn">⊞</div>
+                <div class="sf-hdr-btn">⤢</div>
+                <div class="sf-hdr-sep"></div>
+                <div id="sf-tb-inject"></div>
+              </div>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:2px">
+                <div class="sf-hdr-btn">📡</div>
+                <div class="sf-hdr-btn">⚙</div>
+              </div>
             </div>
-            <div class="sf-main">
-              <div class="sf-content">
-                <div class="sf-term" id="sf-term">
-                  <div><span class="prompt">~/projects/my-app</span> <span style="color:#3b82f6"> main</span></div>
-                  <div><span class="prompt">❯</span> <span class="cmd">npm run dev</span></div>
-                  <div class="out">&nbsp; vite v5.4.0 dev server running</div>
-                  <div class="out">&nbsp; ➜ Local: <span style="color:#3b82f6">http://localhost:5173/</span></div>
-                  <div style="margin-top:6px"><span class="prompt">❯</span> <span style="display:inline-block;width:7px;height:13px;background:#f97316;animation:cur 1s step-end infinite;vertical-align:text-bottom"></span></div>
-                  <style>@keyframes cur{50%{opacity:0}}</style>
-                </div>
-                <div id="sf-right-panel">
-                  <div class="sf-rp-hdr">
-                    <span id="sf-right-title">Panel</span>
-                    <button class="sf-rp-close" onclick="document.getElementById('sf-right-panel').classList.remove('show')">✕</button>
+            <!-- Body -->
+            <div class="sf-body">
+              <div class="sf-sb">
+                <div class="sf-sb-hdr">Sessions</div>
+                <div class="sf-sb-item active"><span class="pdot" style="width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>Terminal 1<span style="margin-left:auto;font-size:10px;color:#3a3a44">zsh</span></div>
+                <div class="sf-sb-item"><span class="pdot" style="width:6px;height:6px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>api-server<span style="margin-left:auto;font-size:10px;color:#3a3a44">node</span></div>
+                <div class="sf-sb-item"><span class="pdot" style="width:6px;height:6px;border-radius:50%;background:#3a3a44;flex-shrink:0"></span>git-watch<span style="margin-left:auto;font-size:10px;color:#3a3a44">idle</span></div>
+                <div id="sf-sb-ext"></div>
+              </div>
+              <div class="sf-main">
+                <div class="sf-content-area">
+                  <div class="sf-terminal" id="sf-terminal">
+                    <div><span class="pt">~/projects/my-app</span> <span style="color:#3b82f6"> main</span></div>
+                    <div><span class="pt">❯</span> <span class="pc">npm run dev</span></div>
+                    <div class="po">&nbsp; vite v5.4.0 dev server running</div>
+                    <div class="po">&nbsp; ➜ Local:&nbsp;&nbsp; <span class="pb">http://localhost:5173/</span></div>
+                    <div class="po">&nbsp; ➜ Network: <span class="pb">http://192.168.1.5:5173/</span></div>
+                    <div style="margin-top:8px"><span class="pt">❯</span> <span class="sf-cursor"></span></div>
                   </div>
-                  <div id="sf-right-body"></div>
+                  <div id="sf-rp">
+                    <div class="sf-rp-hdr">
+                      <span id="sf-rp-title">Panel</span>
+                      <span class="sf-rp-close" onclick="document.getElementById('sf-rp').classList.remove('vis')">✕</span>
+                    </div>
+                    <div id="sf-rp-content"></div>
+                  </div>
                 </div>
-              </div>
-              <div class="sf-statusbar">
-                <div class="sf-s-item"><span class="sdot" style="width:5px;height:5px;border-radius:50%;background:#22c55e"></span>3 panes</div>
-                <div class="sf-s-item"> main</div>
-                <div class="sf-s-item">node 22</div>
-                <div id="sf-status-ext"></div>
+                <div class="sf-statusbar">
+                  <div class="sf-sb-seg"><span class="dot" style="width:5px;height:5px;border-radius:50%;background:#22c55e"></span>3 panes</div>
+                  <div class="sf-sb-seg"> main</div>
+                  <div class="sf-sb-seg">node 22</div>
+                  <div id="sf-status-inject"></div>
+                </div>
               </div>
             </div>
           </div>
+          <div class="pv-toast" id="pv-toast"></div>
         </div>
-        <div class="pv-toast" id="preview-toast"></div>
       </div>
-    </div>
-
-    <!-- Console -->
-    <div class="rpane" id="console-pane">
-      <div id="console-out"></div>
-      <div id="console-input-row">
-        <input id="console-input" placeholder="Send to Shellfire session (e.g. git status)" onkeydown="App.consoleKeydown(event)"/>
-        <button id="console-send" onclick="App.consoleSend()">↵</button>
-      </div>
-    </div>
-
-    <!-- Connect -->
-    <div class="rpane" id="connect-pane">
-      <div class="cp-body">
-        <div class="cp-card">
-          <h3>Shellfire v3 Connection</h3>
-          <p id="conn-detail">Checking…</p>
-          <div id="sessions-list" style="margin-top:10px"></div>
-        </div>
-        <div class="cp-card">
-          <h3>Live Deploy</h3>
-          <p>Push Live writes your extension to <code style="font-size:11px;background:rgba(255,255,255,.07);padding:1px 5px;border-radius:3px">~/.shellfire/plugins/</code> and hot-reloads it without restarting Shellfire.</p>
-          <button class="cp-btn" onclick="App.pushToShellfire()">▶ Push Live Now</button>
-          <button class="cp-btn" onclick="App.toggleAutoPush()" style="margin-top:4px">⚡ Toggle Auto-push on Save</button>
-        </div>
-        <div class="cp-card">
-          <h3>Shortcuts</h3>
-          <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text2)">
-            <div style="display:flex;justify-content:space-between"><span>Save</span><kbd style="font-family:var(--mono);font-size:11px;background:var(--hover);border:1px solid var(--border);padding:1px 6px;border-radius:3px">⌘S</kbd></div>
-            <div style="display:flex;justify-content:space-between"><span>Push Live</span><kbd style="font-family:var(--mono);font-size:11px;background:var(--hover);border:1px solid var(--border);padding:1px 6px;border-radius:3px">⌘⇧R</kbd></div>
-            <div style="display:flex;justify-content:space-between"><span>Pop out Preview</span><kbd style="font-family:var(--mono);font-size:11px;background:var(--hover);border:1px solid var(--border);padding:1px 6px;border-radius:3px">⌘⇧P</kbd></div>
-            <div style="display:flex;justify-content:space-between"><span>Open Folder</span><kbd style="font-family:var(--mono);font-size:11px;background:var(--hover);border:1px solid var(--border);padding:1px 6px;border-radius:3px">⌘O</kbd></div>
+      <div class="rp-pane" id="rp-connect">
+        <div class="cp-body">
+          <div class="cp-card">
+            <h3>Shellfire v3 Sessions</h3>
+            <div class="sess-list" id="rp-sess-list"><p style="color:var(--c-text3);font-size:12px">Checking connection…</p></div>
+          </div>
+          <div class="cp-card">
+            <h3>Deploy</h3>
+            <p style="margin-bottom:6px">Extension is pushed to <code>~/.shellfire/plugins/{name}/</code> and hot-reloaded without restart.</p>
+            <button class="cp-btn" onclick="App.push()">▶ Push Live Now</button>
           </div>
         </div>
       </div>
     </div>
 
-  </div><!-- end right-col -->
-</div>
+  </div><!-- /body -->
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+  <!-- ── STATUS BAR ──────────────────────────────────────────── -->
+  <div id="status-bar" class="disconnected">
+    <div class="sb-item" id="sb-conn">⬡ Not connected</div>
+    <div class="sb-sep"></div>
+    <div class="sb-item" id="sb-file">No file</div>
+    <div class="sb-right">
+      <div id="preview-status" class="ps-idle">
+        <span class="ps-dot"></span>Preview idle
+      </div>
+      <div class="sb-sep"></div>
+      <div class="sb-item" id="sb-lc">Ln 1, Col 1</div>
+      <div class="sb-sep"></div>
+      <div class="sb-item" id="sb-lang">JavaScript</div>
+    </div>
+  </div>
 
+</div><!-- /app -->
+
+<!-- ── Monaco Editor ────────────────────────────────────────── -->
 <script>
-// Scale preview frame to viewport
-function scalePV() {
-  const vp = document.getElementById("pv-viewport");
-  const fr = document.getElementById("pv-frame");
-  if (!vp || !fr) return;
-  const vw = vp.clientWidth, vh = vp.clientHeight;
-  const scale = Math.min(vw / 1100, vh / 720, 1);
-  fr.style.transform = `scale(${scale})`;
-  fr.style.left = ((vw - 1100*scale)/2) + "px";
-  fr.style.top  = ((vh - 720*scale)/2) + "px";
-}
-new ResizeObserver(scalePV).observe(document.getElementById("pv-viewport") || document.body);
-window.addEventListener("resize", scalePV);
-setTimeout(scalePV, 100);
-
-// Tab switching
-function switchR(name, el) {
-  document.querySelectorAll(".rtab").forEach(t => t.classList.remove("active"));
-  el.classList.add("active");
-  document.querySelectorAll(".rpane").forEach(p => p.classList.remove("active"));
-  document.getElementById(name+"-pane").classList.add("active");
-  if (name === "preview") setTimeout(scalePV, 50);
-}
-
-// Update folder crumb
-const origOpenFolder = () => {};
-window._updateCrumb = (path) => {
-  const el = document.getElementById("folder-crumb");
-  if (el) el.textContent = path ? path.replace(/^\/Users\/[^/]+/, "~") : "No project open";
+window.MonacoEnvironment = {
+  getWorkerUrl(_, label) {
+    const base = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
+    const f = label === 'json' ? 'language/json/json.worker' :
+              label === 'css' || label === 'scss' ? 'language/css/css.worker' :
+              label === 'typescript' || label === 'javascript' ? 'language/typescript/ts.worker' :
+              'editor.worker';
+    return `data:text/javascript;charset=utf-8,${encodeURIComponent(
+      `self.MonacoEnvironment={baseUrl:'${base}/'};importScripts('${base}/${f}.js');`
+    )}`;
+  }
 };
+var require = { paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } };
 </script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script src="renderer.js"></script>
-<script>
-// Patch openFolder to update crumb
-const _origOpen = App.openFolder.bind(App);
-App.openFolder = async function() {
-  await _origOpen();
-  window._updateCrumb(window.S?.folderPath);
-};
-const _origNew = App.newProject.bind(App);
-App.newProject = function(type) {
-  _origNew(type);
-  window._updateCrumb(null);
-  document.getElementById("folder-crumb").textContent = `New ${type}`;
-};
-</script>
 </body>
 </html>

@@ -1,262 +1,705 @@
 "use strict";
 // ═══════════════════════════════════════════════════════════════
-// SHELLFIRE STUDIO — RENDERER
+// SHELLFIRE STUDIO — RENDERER v3
 // ═══════════════════════════════════════════════════════════════
 
 // ── State ─────────────────────────────────────────────────────
 const S = {
-  files: {},          // name → { content, dirty, path }
-  openTabs: [],
-  activeFile: null,
-  folderPath: null,
-  sfConnected: false,
-  sfSessions: [],
+  files: {},        // name → { content, dirty, path? }
+  tabs: [],         // ordered open filenames
+  active: null,     // current file name
+  folder: null,
+  connected: false,
+  sessions: [],
   autoPush: false,
-  previewPopped: false,
+  popoutOpen: false,
   liveTimer: null,
+  bpHeight: 200,
 };
 
-// ── CodeMirror ────────────────────────────────────────────────
-let cm = null;
+let editor = null; // Monaco editor instance
 
-function initEditor() {
-  if (cm) return;
-  document.getElementById("empty-state").style.display = "none";
-  const wrap = document.getElementById("editor-wrap");
-  const ta = document.createElement("textarea");
-  ta.style.display = "none";
-  wrap.appendChild(ta);
-
-  cm = CodeMirror.fromTextArea(ta, {
-    theme: "one-dark",
-    lineNumbers: true,
-    mode: "javascript",
-    matchBrackets: true,
-    autoCloseBrackets: true,
-    styleActiveLine: true,
-    indentUnit: 2, tabSize: 2, indentWithTabs: false,
-    lineWrapping: false,
-    extraKeys: {
-      "Cmd-S":  () => App.saveActive(),
-      "Ctrl-S": () => App.saveActive(),
-      "Cmd-/":  (c) => c.execCommand("toggleComment"),
-      "Ctrl-/": (c) => c.execCommand("toggleComment"),
-      "Tab": (c) => c.somethingSelected() ? c.indentSelection("add") : c.replaceSelection("  ","end"),
-    },
-  });
-
-  cm.on("change", () => {
-    if (!S.activeFile) return;
-    const f = S.files[S.activeFile];
-    if (!f) return;
-    f.content = cm.getValue();
-    f.dirty = true;
-    renderTabs();
-    renderFiles();
-    scheduleLiveUpdate();
-  });
-
-  new ResizeObserver(() => cm?.refresh()).observe(wrap);
-}
-
-// ── Logging ───────────────────────────────────────────────────
+// ── UI helpers ────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
 const E = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 function log(msg, type = "info") {
-  const out = document.getElementById("console-out");
-  const ts = new Date().toLocaleTimeString("en",{hour12:false});
-  const d = document.createElement("div");
-  d.className = "log-" + type;
-  d.innerHTML = `<span class="log-ts">${ts}</span><span>${E(msg)}</span>`;
-  out.appendChild(d);
+  const out = $("console-out");
+  if (!out) return;
+  const ts = new Date().toLocaleTimeString("en", { hour12: false });
+  const row = document.createElement("div");
+  row.className = "log-row";
+  row.innerHTML = `<span class="log-ts">${ts}</span><span class="log-msg log-${type}">${E(msg)}</span>`;
+  out.appendChild(row);
   out.scrollTop = out.scrollHeight;
-  // Also update status strip
-  document.getElementById("status-msg").textContent = msg;
-  document.getElementById("status-msg").className = "status-msg " + type;
+  // Also update status bar if not a disconnection message
+  updateStatusBar();
 }
 
-// ── Render helpers ────────────────────────────────────────────
-function fileIcon(name) {
-  if (name === "plugin.json" || name.endsWith(".json")) return `<span style="color:#e5c07b">{}</span>`;
-  if (name.endsWith(".css"))  return `<span style="color:#56b6c2">css</span>`;
-  if (name.endsWith(".md"))   return `<span style="color:#98c379">md</span>`;
-  return `<span style="color:#61afef">js</span>`;
+function toast(msg, dur = 2000) {
+  const t = $("pv-toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove("show"), dur);
 }
-function cmMode(name) {
-  if (name.endsWith(".json")) return { name:"javascript", json:true };
+
+// ── Activity bar ──────────────────────────────────────────────
+function switchActivity(btn) {
+  document.querySelectorAll(".ab-btn[data-panel]").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.querySelectorAll(".sb-panel").forEach(p => p.classList.remove("active"));
+  $("panel-" + btn.dataset.panel)?.classList.add("active");
+}
+
+// ── Tab / bottom panel switching ──────────────────────────────
+function switchBP(name, el) {
+  document.querySelectorAll(".bp-tab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  document.querySelectorAll(".bp-pane").forEach(p => p.classList.remove("active"));
+  $("bp-" + name)?.classList.add("active");
+}
+
+function switchRP(name, el) {
+  document.querySelectorAll(".rp-tab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  document.querySelectorAll(".rp-pane").forEach(p => p.classList.remove("active"));
+  $("rp-" + name)?.classList.add("active");
+  if (name === "preview") scalePreview();
+}
+
+let bpVisible = true;
+function toggleBottomPanel() {
+  bpVisible = !bpVisible;
+  const bp = $("bottom-panel");
+  const vr = $("bp-resize");
+  if (bp) bp.style.display = bpVisible ? "" : "none";
+  if (vr) vr.style.display = bpVisible ? "" : "none";
+  editor?.layout();
+}
+
+// ── Scale virtual Shellfire preview to fit viewport ───────────
+function scalePreview() {
+  const vp = $("preview-viewport");
+  const fr = $("sf-preview");
+  if (!vp || !fr) return;
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const scale = Math.min(vw / 1200, vh / 780, 1);
+  fr.style.transform = `scale(${scale})`;
+  fr.style.left = ((vw - 1200 * scale) / 2) + "px";
+  fr.style.top  = ((vh - 780  * scale) / 2) + "px";
+}
+new ResizeObserver(scalePreview).observe(document.getElementById("preview-viewport") || document.body);
+
+// ── Monaco setup ──────────────────────────────────────────────
+const SHELLFIRE_API_TYPES = `
+declare const api: {
+  terminal: {
+    /** Returns the focused pane ID, or null */
+    getActive(): number | null;
+    /** All open pane descriptors */
+    getAll(): Array<{ id: number; name: string; cwd: string | null }>;
+    /** Write text/command to a terminal pane */
+    send(text: string, paneId?: number): void;
+    /** Read scrollback buffer */
+    getOutput(paneId?: number, lines?: number): string;
+    /** Called every time a pane emits output */
+    onOutput(callback: (data: string, id: number) => void, paneId?: number): { dispose(): void };
+    /** Intercept keyboard input — return false to suppress */
+    onInput(callback: (text: string, id: number) => boolean | void, paneId?: number): { dispose(): void };
+    /** Open a new terminal pane */
+    create(cwd?: string): Promise<number>;
+    /** Focus a pane */
+    focus(paneId: number): void;
+  };
+  ui: {
+    toolbar: {
+      /** Add a button to the toolbar */
+      add(config: {
+        id: string;
+        icon?: string;
+        tooltip?: string;
+        label?: string;
+        onClick?(): void;
+      }): { remove(): void };
+    };
+    panel: {
+      /** Add a side panel */
+      add(config: {
+        id: string;
+        title?: string;
+        icon?: string;
+        render?(container: HTMLElement): void;
+        onShow?(): void;
+        onHide?(): void;
+      }): { refresh(): void; remove(): void };
+    };
+    menu: {
+      /** Add a context menu item */
+      add(config: {
+        id: string;
+        label: string;
+        when?(ctx: { paneId: number; selection: string; x: number; y: number }): boolean;
+        onClick?(ctx: { paneId: number; selection: string; x: number; y: number }): void;
+      }): { remove(): void };
+    };
+    statusbar: {
+      /** Add a status bar widget */
+      add(config: {
+        id: string;
+        text?: string;
+        tooltip?: string;
+        onClick?(): void;
+      }): { setText(t: string): void; setTooltip(t: string): void; remove(): void };
+    };
+  };
+  commands: {
+    /** Register a command palette entry */
+    register(config: {
+      id: string;
+      name: string;
+      keybinding?: string;
+      category?: string;
+      when?(): boolean;
+      run(): void;
+    }): { remove(): void };
+  };
+  storage: {
+    get(key: string): Promise<any>;
+    set(key: string, value: any): Promise<void>;
+    delete(key: string): Promise<void>;
+    clear(): Promise<void>;
+  };
+  ai: {
+    /** Single-turn AI completion */
+    complete(prompt: string): Promise<string>;
+    /** Multi-turn AI chat */
+    chat(messages: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<string>;
+  };
+  events: {
+    emit(event: string, data?: any): void;
+    on(event: string, callback: (data: any) => void): { dispose(): void };
+  };
+  settings: Record<string, any>;
+};
+
+declare const exports: any;
+declare const module: { exports: any };
+`;
+
+function initMonaco(cb) {
+  require(["vs/editor/editor.main"], function () {
+    // Custom Shellfire dark theme
+    monaco.editor.defineTheme("shellfire-dark", {
+      base: "vs-dark",
+      inherit: true,
+      rules: [
+        { token: "", foreground: "a8a8b3", background: "0c0c0f" },
+        { token: "comment", foreground: "4a4a58", fontStyle: "italic" },
+        { token: "keyword", foreground: "c678dd" },
+        { token: "string", foreground: "98c379" },
+        { token: "number", foreground: "d19a66" },
+        { token: "regexp", foreground: "56b6c2" },
+        { token: "type", foreground: "e5c07b" },
+        { token: "class", foreground: "e5c07b" },
+        { token: "function", foreground: "61afef" },
+        { token: "variable", foreground: "e06c75" },
+        { token: "variable.predefined", foreground: "56b6c2" },
+        { token: "constant", foreground: "d19a66" },
+        { token: "tag", foreground: "e06c75" },
+        { token: "attribute.name", foreground: "d19a66" },
+        { token: "attribute.value", foreground: "98c379" },
+        { token: "delimiter", foreground: "a8a8b3" },
+        { token: "bracket", foreground: "ffd700" },
+      ],
+      colors: {
+        "editor.background": "#0c0c0f",
+        "editor.foreground": "#a8a8b3",
+        "editor.lineHighlightBackground": "#14141a",
+        "editor.selectionBackground": "#f9731630",
+        "editor.inactiveSelectionBackground": "#f9731618",
+        "editorCursor.foreground": "#f97316",
+        "editorLineNumber.foreground": "#3a3a44",
+        "editorLineNumber.activeForeground": "#6a6a75",
+        "editorGutter.background": "#0c0c0f",
+        "editorIndentGuide.background": "#1e1e26",
+        "editorIndentGuide.activeBackground": "#2a2a34",
+        "editorRuler.foreground": "#1e1e26",
+        "editorBracketMatch.background": "#f9731625",
+        "editorBracketMatch.border": "#f97316",
+        "editor.findMatchBackground": "#f9731640",
+        "editor.findMatchHighlightBackground": "#f9731620",
+        "editorWidget.background": "#1a1a20",
+        "editorWidget.border": "#28282e",
+        "editorSuggestWidget.background": "#1a1a20",
+        "editorSuggestWidget.border": "#28282e",
+        "editorSuggestWidget.selectedBackground": "#28282e",
+        "editorSuggestWidget.highlightForeground": "#f97316",
+        "editorHoverWidget.background": "#1a1a20",
+        "editorHoverWidget.border": "#28282e",
+        "input.background": "#1c1c22",
+        "input.border": "#28282e",
+        "inputOption.activeBorder": "#f97316",
+        "list.hoverBackground": "#1e1e26",
+        "list.activeSelectionBackground": "#28282e",
+        "list.focusBackground": "#28282e",
+        "scrollbarSlider.background": "#28282e80",
+        "scrollbarSlider.hoverBackground": "#3a3a4480",
+        "minimap.background": "#0a0a0d",
+        "minimapSlider.background": "#28282e50",
+      },
+    });
+
+    // Register Shellfire API types for JS/TS autocomplete
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      SHELLFIRE_API_TYPES,
+      "ts:shellfire-api.d.ts"
+    );
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false,
+    });
+    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+      allowJs: true,
+      checkJs: false,
+      target: monaco.languages.typescript.ScriptTarget.ES2020,
+    });
+
+    // Create editor
+    editor = monaco.editor.create($("monaco-container"), {
+      theme: "shellfire-dark",
+      language: "javascript",
+      fontSize: 14,
+      fontFamily: '"SF Mono", ui-monospace, "Menlo", "Cascadia Code", monospace',
+      fontLigatures: true,
+      lineHeight: 22,
+      letterSpacing: 0,
+      minimap: { enabled: true, scale: 1, renderCharacters: false },
+      scrollBeyondLastLine: true,
+      wordWrap: "off",
+      renderLineHighlight: "all",
+      cursorBlinking: "smooth",
+      cursorSmoothCaretAnimation: "on",
+      smoothScrolling: true,
+      formatOnPaste: true,
+      tabSize: 2,
+      insertSpaces: true,
+      detectIndentation: false,
+      bracketPairColorization: { enabled: true },
+      padding: { top: 16, bottom: 120 },
+      overviewRulerBorder: false,
+      hideCursorInOverviewRuler: false,
+      renderWhitespace: "selection",
+      guides: { bracketPairs: "active", indentation: true },
+      occurrencesHighlight: "singleFile",
+      selectionHighlight: true,
+      suggest: { preview: true, localityBonus: true, showKeywords: true, showSnippets: true },
+      quickSuggestions: { strings: true, comments: false, other: true },
+      parameterHints: { enabled: true },
+      codeLens: false,
+      folding: true,
+      foldingHighlight: true,
+      showFoldingControls: "mouseover",
+      links: true,
+      colorDecorators: true,
+      scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
+      glyphMargin: false,
+      fixedOverflowWidgets: true,
+    });
+
+    // Key bindings
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => App.save());
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyR, () => App.push());
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, () => App.popout());
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, () => {
+      editor.getAction("editor.action.formatDocument")?.run();
+    });
+
+    // Cursor position → status bar
+    editor.onDidChangeCursorPosition(e => {
+      const p = e.position;
+      const lb = $("sb-lc");
+      if (lb) lb.textContent = `Ln ${p.lineNumber}, Col ${p.column}`;
+    });
+
+    // Content change → update state + live preview
+    editor.onDidChangeModelContent(() => {
+      if (!S.active) return;
+      const f = S.files[S.active];
+      if (!f) return;
+      const val = editor.getValue();
+      if (f.content === val) return;
+      f.content = val;
+      f.dirty = true;
+      renderTabs();
+      renderTree();
+      scheduleLive();
+    });
+
+    if (cb) cb();
+  });
+}
+
+// ── Render tabs ───────────────────────────────────────────────
+function renderTabs() {
+  const strip = $("tab-strip");
+  if (!strip) return;
+  strip.innerHTML = "";
+  for (const name of S.tabs) {
+    const f = S.files[name];
+    const active = name === S.active;
+    const div = document.createElement("div");
+    div.className = "tab" + (active ? " active" : "");
+    div.innerHTML = `
+      <span class="tab-icon">${tabIcon(name)}</span>
+      <span class="tab-name">${E(name)}${f?.dirty ? '<span class="tab-dirty">●</span>' : ""}</span>
+      <span class="tab-close" onclick="event.stopPropagation();App.closeTab('${name}')">✕</span>
+    `;
+    div.onclick = () => App.openTab(name);
+    strip.appendChild(div);
+  }
+}
+
+function tabIcon(name) {
+  if (name === "plugin.json" || name.endsWith(".json")) return "{}";
   if (name.endsWith(".css"))  return "css";
+  if (name.endsWith(".md"))   return "md";
+  return "js";
+}
+function langFor(name) {
+  if (name.endsWith(".json")) return "json";
+  if (name.endsWith(".css"))  return "css";
+  if (name.endsWith(".md"))   return "markdown";
   return "javascript";
 }
 
-function renderTabs() {
-  const bar = document.getElementById("tab-bar");
-  bar.innerHTML = "";
-  for (const name of S.openTabs) {
-    const f = S.files[name];
-    const active = name === S.activeFile;
-    const div = document.createElement("div");
-    div.className = "etab" + (active ? " active" : "");
-    div.innerHTML = `
-      <span class="tico">${fileIcon(name)}</span>
-      <span class="tname">${E(name)}${f?.dirty ? '<span class="tdirty">●</span>' : ""}</span>
-      <button class="tclose" onclick="event.stopPropagation();App.closeTab('${name}')">✕</button>
-    `;
-    div.onclick = () => App.openTab(name);
-    bar.appendChild(div);
-  }
-}
-
-function renderFiles() {
-  const list = document.getElementById("file-list");
-  list.innerHTML = "";
-  const sorted = Object.keys(S.files).sort((a,b) => {
-    if (a==="plugin.json") return -1;
-    if (b==="plugin.json") return 1;
+// ── Render file tree ──────────────────────────────────────────
+function renderTree() {
+  const tree = $("file-tree");
+  if (!tree) return;
+  const names = Object.keys(S.files).sort((a,b) => {
+    if (a === "plugin.json") return -1;
+    if (b === "plugin.json") return 1;
     return a.localeCompare(b);
   });
-  for (const name of sorted) {
-    const div = document.createElement("div");
-    div.className = "file-item" + (name === S.activeFile ? " active" : "");
-    div.innerHTML = `
-      <span class="fic">${fileIcon(name)}</span>
-      <span class="fn">${E(name)}</span>
-      ${S.files[name]?.dirty ? '<span class="fd">●</span>' : ""}
+  if (!names.length) {
+    tree.innerHTML = '<div class="empty-msg">Open a project or create a new extension.</div>';
+    return;
+  }
+  tree.innerHTML = "";
+  for (const name of names) {
+    const f = S.files[name];
+    const row = document.createElement("div");
+    row.className = "file-row" + (name === S.active ? " active" : "");
+    row.innerHTML = `
+      <span class="fr-icon">${tabIcon(name)}</span>
+      <span class="fr-name">${E(name)}</span>
+      ${f?.dirty ? '<span class="fr-dirty">●</span>' : ""}
     `;
-    div.onclick = () => App.openTab(name);
-    list.appendChild(div);
+    row.onclick = () => App.openTab(name);
+    tree.appendChild(row);
   }
 }
 
-// ── Live preview update ───────────────────────────────────────
-function scheduleLiveUpdate() {
-  clearTimeout(S.liveTimer);
-  S.liveTimer = setTimeout(() => {
-    const f = S.files[S.activeFile];
-    if (!f) return;
-    const isJs = !S.activeFile?.endsWith(".json") && !S.activeFile?.endsWith(".css") && !S.activeFile?.endsWith(".md");
-    if (!isJs) return;
-    const manifest = getManifest();
-    // Send to embedded preview
-    EmbeddedPreview.run(f.content, manifest);
-    // Send to popped-out preview window
-    if (S.previewPopped) window.studio.previewSendCode(f.content, manifest);
-    // Auto-push to Shellfire if enabled
-    if (S.autoPush && S.sfConnected) {
-      App.pushToShellfire(true); // silent=true
-    }
-  }, 500);
+// ── Open tab in Monaco ────────────────────────────────────────
+function openInEditor(name) {
+  const f = S.files[name];
+  if (!f) return;
+
+  S.active = name;
+  if (!S.tabs.includes(name)) S.tabs.push(name);
+
+  // Show Monaco, hide empty state
+  $("empty-state").classList.add("hidden");
+  $("monaco-container").classList.remove("hidden");
+
+  if (!editor) {
+    initMonaco(() => setEditorContent(name, f));
+  } else {
+    setEditorContent(name, f);
+  }
+  renderTabs();
+  renderTree();
+  updateStatusBar();
+  scheduleLive();
 }
 
+function setEditorContent(name, f) {
+  const lang = langFor(name);
+  const uri = monaco.Uri.parse(`file:///${name}`);
+  let model = monaco.editor.getModel(uri);
+  if (!model) {
+    model = monaco.editor.createModel(f.content, lang, uri);
+  } else {
+    if (model.getValue() !== f.content) model.setValue(f.content);
+  }
+  editor.setModel(model);
+  editor.focus();
+  $("bc-file").textContent = name;
+  const lb = $("sb-lang");
+  if (lb) lb.textContent = lang.charAt(0).toUpperCase() + lang.slice(1);
+}
+
+// ── Status bar ────────────────────────────────────────────────
+function updateStatusBar() {
+  const sb = $("status-bar");
+  if (!sb) return;
+  if (S.connected) {
+    sb.className = "";
+    $("sb-conn").textContent = `⬡ ${S.sessions.length} session${S.sessions.length !== 1 ? "s" : ""}`;
+  } else {
+    sb.className = "disconnected";
+    $("sb-conn").textContent = "⬡ Disconnected";
+  }
+  $("sb-file").textContent = S.active || "No file";
+}
+
+function setPreviewStatus(state, msg) {
+  const el = $("preview-status");
+  if (!el) return;
+  el.className = state === "error" ? "ps-error" : state === "idle" ? "ps-idle" : "";
+  const dot = el.querySelector(".ps-dot");
+  el.textContent = " " + msg;
+  if (dot) el.prepend(dot);
+}
+
+// ── Refresh installed extensions ──────────────────────────────
+async function refreshInstalled() {
+  const list = $("inst-list");
+  if (!list) return;
+  const installed = await window.studio.fsListInstalled();
+  list.innerHTML = installed.length
+    ? installed.map(p => `
+        <div class="inst-row">
+          <div class="inst-info">
+            <div class="inst-name">${E(p.manifest.displayName || p.manifest.name)}</div>
+            <div class="inst-meta">${E(p.manifest.type)} · v${E(p.manifest.version)}</div>
+          </div>
+          <button class="inst-del" onclick="App.uninstall('${E(p.id)}')" title="Uninstall">✕</button>
+        </div>
+      `).join("")
+    : '<div class="empty-msg">No extensions installed yet.</div>';
+}
+
+// ── Connection polling ────────────────────────────────────────
+async function pollConn() {
+  const res = await window.studio.sfStatus();
+  S.connected = res.connected;
+  S.sessions = res.sessions || [];
+
+  const badge = $("conn-badge");
+  const ct    = $("conn-text");
+  const sbConn = $("sb-conn");
+
+  if (res.connected) {
+    badge?.classList.replace("off", "on");
+    if (ct) ct.textContent = `${S.sessions.length} session${S.sessions.length !== 1 ? "s" : ""}`;
+    if (sbConn) sbConn.textContent = `⬡ ${S.sessions.length} sessions`;
+    $("status-bar")?.classList.remove("disconnected");
+    $("conn-detail") && ($("conn-detail").textContent = "Connected to Shellfire v3 ✓");
+    renderSessions(S.sessions);
+  } else {
+    badge?.classList.replace("on", "off");
+    if (ct) ct.textContent = "Disconnected";
+    $("status-bar")?.classList.add("disconnected");
+    $("conn-detail") && ($("conn-detail").textContent = res.error || "Not connected — start Shellfire v3 first.");
+    renderSessions([]);
+  }
+  updateAutoPushBtn();
+}
+
+function renderSessions(sessions) {
+  const html = sessions.length
+    ? sessions.map(s => `
+        <div class="sess-row">
+          <span class="sess-dot"></span>
+          <span class="sess-name">${E(s.name)}</span>
+          <span class="sess-proc">${E(s.process||"")}</span>
+          <span class="sess-cwd">${E((s.cwd||"").replace(/^\/Users\/[^/]+/,"~"))}</span>
+        </div>
+      `).join("")
+    : '<p style="color:var(--c-text3);font-size:12px;padding:4px 0">No active sessions</p>';
+  // Update both sidebar and right panel session lists
+  $("sess-list") && ($("sess-list").innerHTML = html);
+  $("rp-sess-list") && ($("rp-sess-list").innerHTML = html);
+}
+
+function updateAutoPushBtn() {
+  const btn = $("auto-btn");
+  if (!btn) return;
+  if (S.autoPush && S.connected) {
+    btn.textContent = "⚡ Auto ON";
+    btn.className = "h-auto active";
+  } else {
+    btn.textContent = "⚡ Auto";
+    btn.className = S.connected ? "h-auto" : "h-auto";
+    if (!S.connected) btn.style.opacity = ".45";
+    else btn.style.opacity = "";
+  }
+}
+
+// ── Manifest helpers ──────────────────────────────────────────
 function getManifest() {
   try { return JSON.parse(S.files["plugin.json"]?.content || "{}"); }
   catch { return {}; }
 }
-
 function getPluginId() {
   return getManifest().name || "studio-extension";
 }
 
-// ── Embedded preview (in-app) ─────────────────────────────────
-const EmbeddedPreview = (() => {
-  let disposed = null;
+// ── Live preview ──────────────────────────────────────────────
+function scheduleLive() {
+  clearTimeout(S.liveTimer);
+  S.liveTimer = setTimeout(() => {
+    if (!S.active) return;
+    const f = S.files[S.active];
+    if (!f || S.active.endsWith(".json") || S.active.endsWith(".md")) return;
+    const code = f.content;
+    const mf = getManifest();
+    EmbPreview.run(code, mf);
+    if (S.popoutOpen) window.studio.previewSendCode(code, mf);
+    if (S.autoPush && S.connected) App.push(true);
+  }, 500);
+}
+
+// ── Embedded virtual Shellfire preview ────────────────────────
+const EmbPreview = (() => {
+  let cleanup = null;
 
   function reset() {
-    if (disposed) { try { disposed(); } catch {} disposed = null; }
-    document.getElementById("sf-tb-ext").innerHTML = "";
-    document.getElementById("sf-status-ext").innerHTML = "";
-    document.getElementById("sf-panel-list").innerHTML = "";
-    document.getElementById("sf-right-panel").classList.remove("show");
-    document.getElementById("sf-right-body").innerHTML = "";
-    const term = document.getElementById("sf-term");
-    term.style.background = ""; term.style.color = "";
+    if (cleanup) { try { cleanup(); } catch {} cleanup = null; }
+    $("sf-tb-inject").innerHTML = "";
+    $("sf-status-inject").innerHTML = "";
+    $("sf-sb-ext").innerHTML = "";
+    $("sf-rp").classList.remove("vis");
+    $("sf-rp-content").innerHTML = "";
+    // Reset terminal styles
+    const term = $("sf-terminal");
+    if (term) { term.style.background = ""; term.style.color = ""; }
+    // Reset header/sidebar/statusbar
+    document.querySelector(".sf-hdr") && (document.querySelector(".sf-hdr").style.background = "");
+    document.querySelector(".sf-sb") && (document.querySelector(".sf-sb").style.background = "");
+    document.querySelector(".sf-statusbar") && (document.querySelector(".sf-statusbar").style.background = "");
   }
 
   function buildAPI() {
     const dis = [];
-    const toast = (msg, dur=2200) => {
-      const t = document.getElementById("preview-toast");
-      if (!t) return;
-      t.textContent = msg; t.classList.add("show");
-      setTimeout(() => t.classList.remove("show"), dur);
-    };
+    const notify = (msg, dur) => toast(msg, dur);
+
+    function addTermLine(html) {
+      const term = $("sf-terminal");
+      if (!term) return;
+      const cursor = term.querySelector(".sf-cursor");
+      const div = document.createElement("div");
+      div.innerHTML = html;
+      if (cursor) cursor.parentElement.insertBefore(div, cursor.parentElement.lastElementChild);
+      else term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
     const api = {
       terminal: {
         getActive: () => 1,
         getAll: () => [
-          {id:1,name:"Terminal 1",cwd:"~/projects/my-app"},
-          {id:2,name:"api-server",cwd:"~/projects/my-app"},
+          { id:1, name:"Terminal 1", cwd:"~/projects/my-app" },
+          { id:2, name:"api-server", cwd:"~/projects/my-app" },
+          { id:3, name:"git-watch", cwd:"~" },
         ],
         send(text) {
-          const term = document.getElementById("sf-term");
-          const cursor = term?.querySelector(".sf-cursor");
-          const div = document.createElement("div");
-          div.innerHTML = `<span class="prompt">❯</span> <span class="cmd">${E(text.replace(/\n$/,""))}</span>`;
-          if (cursor) cursor.parentElement.insertBefore(div, cursor.parentElement.lastChild);
-          else term?.appendChild(div);
-          toast(`→ ${text.trim().slice(0,50)}`);
+          addTermLine(`<span class="pt">❯</span> <span class="pc">${E(text.replace(/\n$/,""))}</span>`);
+          notify(`→ ${text.trim().slice(0,50)}`);
         },
-        getOutput: () => "❯ npm run dev\n  vite running\n",
-        onOutput: (cb) => { const t=setInterval(()=>{},999999); dis.push(()=>clearInterval(t)); return {dispose:()=>clearInterval(t)}; },
-        onInput: () => ({dispose:()=>{}}),
-        create: async (cwd) => { toast(`New pane${cwd?" in "+cwd:""}`); return 3; },
-        focus: (id) => toast(`Focused pane ${id}`),
+        getOutput: () => "❯ npm run dev\n  vite v5.4.0 running\n",
+        onOutput: (cb) => {
+          const t = setInterval(() => {}, 999999);
+          dis.push(() => clearInterval(t));
+          return { dispose: () => clearInterval(t) };
+        },
+        onInput: () => ({ dispose: () => {} }),
+        create: async (cwd) => {
+          addTermLine(`<span style="color:#22c55e">✓ New pane${cwd ? " in " + E(cwd) : ""}</span>`);
+          return 4;
+        },
+        focus: (id) => notify(`Focused pane ${id}`),
       },
       ui: {
         toolbar: {
           add(cfg) {
-            const btn = document.createElement("button");
-            btn.className = "sf-btn"; btn.title = cfg.tooltip || "";
-            btn.innerHTML = cfg.icon?.length <= 4 ? cfg.icon : (cfg.label ? E(cfg.label) : "⚡");
-            if (cfg.label && cfg.icon) btn.innerHTML = `${cfg.icon}&nbsp;<span style="font-size:10px">${E(cfg.label)}</span>`;
-            btn.onclick = () => { try { cfg.onClick?.(); } catch(e){ log("toolbar onClick: "+e.message,"error"); } };
-            document.getElementById("sf-tb-ext").appendChild(btn);
+            const btn = document.createElement("div");
+            btn.className = "sf-hdr-btn";
+            btn.style.cursor = "pointer";
+            btn.title = cfg.tooltip || "";
+            if (cfg.icon && cfg.icon.length <= 4) btn.innerHTML = cfg.icon;
+            else if (cfg.label) btn.innerHTML = `<span style="font-size:11px;padding:0 2px">${E(cfg.label)}</span>`;
+            else btn.innerHTML = "⚡";
+            btn.onclick = () => { try { cfg.onClick?.(); } catch(e) { log(e.message,"error"); } };
+            $("sf-tb-inject").appendChild(btn);
             dis.push(() => btn.remove());
-            return { remove:()=>btn.remove() };
+            return { remove: () => btn.remove() };
           },
         },
         panel: {
           add(cfg) {
             const li = document.createElement("div");
-            li.className = "sfp-item"; li.style.cssText="padding:5px 14px;font-size:12px;color:#71717a;cursor:pointer;display:flex;gap:7px;align-items:center;";
-            li.innerHTML = `<span>${cfg.icon||"📋"}</span> ${E(cfg.title||cfg.id)}`;
+            li.className = "sf-sb-item";
+            li.style.cursor = "pointer";
+            li.innerHTML = `<span style="font-size:12px">${cfg.icon||"📋"}</span> ${E(cfg.title||cfg.id)}`;
             li.onclick = () => showPanel(cfg);
-            document.getElementById("sf-panel-list").appendChild(li);
+            $("sf-sb-ext").appendChild(li);
             showPanel(cfg);
-            dis.push(() => { li.remove(); document.getElementById("sf-right-panel").classList.remove("show"); });
-            return { refresh(){ showPanel(cfg); }, remove(){ li.remove(); document.getElementById("sf-right-panel").classList.remove("show"); } };
+            dis.push(() => { li.remove(); $("sf-rp").classList.remove("vis"); });
+            return {
+              refresh() { showPanel(cfg); },
+              remove() { li.remove(); $("sf-rp").classList.remove("vis"); }
+            };
           },
         },
-        menu: { add(cfg){ toast(`Context menu: "${cfg.label}"`); return {remove:()=>{}}; } },
+        menu: {
+          add(cfg) { notify(`Context menu: "${cfg.label}"`); return { remove: () => {} }; },
+        },
         statusbar: {
           add(cfg) {
-            const span = document.createElement("div");
-            span.className = "sf-s-item";
-            span.innerHTML = E(cfg.text||""); span.title = cfg.tooltip||"";
-            span.style.cursor = cfg.onClick?"pointer":"default";
-            if (cfg.onClick) span.onclick = ()=>{ try{cfg.onClick();}catch(e){log(e.message,"error");} };
-            document.getElementById("sf-status-ext").appendChild(span);
-            dis.push(() => span.remove());
-            return { setText(t){span.innerHTML=E(t);}, setTooltip(t){span.title=t;}, remove(){span.remove();} };
+            const seg = document.createElement("div");
+            seg.className = "sf-sb-seg";
+            seg.innerHTML = E(cfg.text || "");
+            seg.title = cfg.tooltip || "";
+            seg.style.cursor = cfg.onClick ? "pointer" : "default";
+            if (cfg.onClick) seg.onclick = () => { try { cfg.onClick(); } catch(e){ log(e.message,"error"); } };
+            $("sf-status-inject").appendChild(seg);
+            dis.push(() => seg.remove());
+            return {
+              setText: (t) => { seg.innerHTML = E(t); },
+              setTooltip: (t) => { seg.title = t; },
+              remove: () => seg.remove(),
+            };
           },
         },
       },
       commands: {
-        register(cfg){ toast(`Command: "${cfg.name}"`); return {remove:()=>{}}; },
+        register(cfg) {
+          notify(`Command: "${cfg.name}"${cfg.keybinding ? " ["+cfg.keybinding+"]" : ""}`);
+          return { remove: () => {} };
+        },
       },
       storage: {
-        _d:{}, get:async k=>api.storage._d[k],
-        set:async(k,v)=>{api.storage._d[k]=v;},
-        delete:async k=>{delete api.storage._d[k];},
-        clear:async()=>{api.storage._d={};},
+        _d: {}, get: async k => api.storage._d[k],
+        set: async (k,v) => { api.storage._d[k] = v; },
+        delete: async k => { delete api.storage._d[k]; },
+        clear: async () => { api.storage._d = {}; },
       },
       ai: {
-        complete:async()=>"(AI — connect to Shellfire)",
-        chat:async()=>"(AI — connect to Shellfire)",
+        complete: async (p) => { notify("ai.complete() — connect to Shellfire for live calls"); return "(AI preview)"; },
+        chat: async (m) => { notify("ai.chat() — connect to Shellfire for live calls"); return "(AI preview)"; },
       },
       events: {
-        _h:{},
-        emit(e,d){(api.events._h[e]||[]).forEach(f=>f(d));},
-        on(e,f){ (api.events._h[e]=api.events._h[e]||[]).push(f); return {dispose:()=>{api.events._h[e]=(api.events._h[e]||[]).filter(g=>g!==f);}}; },
+        _h: {},
+        emit(e, d) { (api.events._h[e] || []).forEach(f => f(d)); },
+        on(e, f) {
+          (api.events._h[e] = api.events._h[e] || []).push(f);
+          return { dispose: () => { api.events._h[e] = (api.events._h[e] || []).filter(g => g !== f); } };
+        },
       },
       settings: {},
     };
@@ -264,195 +707,262 @@ const EmbeddedPreview = (() => {
   }
 
   function showPanel(cfg) {
-    document.getElementById("sf-right-title").textContent = cfg.title || cfg.id;
-    const body = document.getElementById("sf-right-body");
+    $("sf-rp-title").textContent = cfg.title || cfg.id;
+    const body = $("sf-rp-content");
     body.innerHTML = "";
     const c = document.createElement("div");
-    try { cfg.render?.(c); } catch(e){ c.style.color="#ef4444"; c.textContent=e.message; }
+    try { cfg.render?.(c); } catch(e) { c.style.color="#ef4444"; c.textContent = e.message; }
     body.appendChild(c);
-    document.getElementById("sf-right-panel").classList.add("show");
+    $("sf-rp").classList.add("vis");
   }
 
   function run(code, manifest) {
     reset();
-    if (!code?.trim()) return;
+    if (!code?.trim()) { setPreviewStatus("idle", "Preview idle"); return; }
 
     let exports = {};
     try {
-      const fn = new Function("exports","module",code);
-      const mod = {exports:{}};
+      const fn = new Function("exports", "module", code);
+      const mod = { exports: {} };
       fn(mod.exports, mod);
       exports = mod.exports;
     } catch(e) {
+      setPreviewStatus("error", "Syntax error");
+      setProblem(e.message);
       log("Syntax error: " + e.message, "error");
-      setPreviewBadge("error");
       return;
     }
+
+    clearProblems();
 
     // Theme
     if (exports.colors) {
       const c = exports.colors;
-      const term = document.getElementById("sf-term");
-      if (term) { term.style.background = c.background||""; term.style.color = c.foreground||""; }
+      const term = $("sf-terminal");
+      if (term) { term.style.background = c.background || ""; term.style.color = c.foreground || ""; }
+      if (c.uiBackground) {
+        document.querySelector(".sf-hdr").style.background = c.uiBackground;
+        document.querySelector(".sf-sb").style.background = c.uiBackground;
+        document.querySelector(".sf-statusbar").style.background = c.uiBackground;
+      }
+      setPreviewStatus("live", "Theme applied");
       log("Theme applied to preview", "ok");
-      setPreviewBadge("live");
       return;
     }
 
+    // Extension
     if (typeof exports.activate === "function") {
       const { api, dis } = buildAPI();
-      disposed = () => { dis.forEach(f=>{try{f();}catch{}}); try{exports.deactivate?.();}catch{} };
+      cleanup = () => {
+        dis.forEach(f => { try { f(); } catch {} });
+        try { exports.deactivate?.(); } catch {}
+      };
       try {
         exports.activate(api);
+        setPreviewStatus("live", "Extension live");
         log("Extension activated in preview", "ok");
-        setPreviewBadge("live");
       } catch(e) {
+        setPreviewStatus("error", "activate() error");
+        setProblem(e.message);
         log("activate() error: " + e.message, "error");
-        setPreviewBadge("error");
       }
       return;
     }
+
     if (exports.name && exports.execute) {
+      setPreviewStatus("live", `Command: "${exports.name}"`);
       log(`Command plugin: "${exports.name}"`, "ok");
-      setPreviewBadge("live");
       return;
     }
-    log("No activate() or colors found", "warn");
-    setPreviewBadge("idle");
+
+    setPreviewStatus("idle", "No activate() or colors");
+    log("No activate() or colors — nothing to preview", "warn");
   }
 
   return { run, reset };
 })();
 
-function setPreviewBadge(state) {
-  const b = document.getElementById("preview-badge");
-  if (!b) return;
-  b.className = "preview-badge " + state;
-  b.textContent = { live:"● Live", error:"● Error", idle:"○ Idle" }[state] || "○";
+// Problems panel
+function setProblem(msg) {
+  const po = $("problems-out");
+  if (po) po.innerHTML = `<div style="color:var(--c-red);padding:2px 0">✕ ${E(msg)}</div>`;
+}
+function clearProblems() {
+  const po = $("problems-out");
+  if (po) po.innerHTML = '<div style="color:var(--c-text3)">No problems detected.</div>';
 }
 
-// ── Connection polling ────────────────────────────────────────
-async function pollConnection() {
-  const res = await window.studio.sfStatus();
-  S.sfConnected = res.connected;
-  S.sfSessions = res.sessions || [];
-
-  const pill = document.getElementById("conn-pill");
-  const txt  = document.getElementById("conn-text");
-  if (res.connected) {
-    pill.className = "conn-pill on";
-    txt.textContent = `${res.sessions.length} session${res.sessions.length!==1?"s":""}`;
-    renderSessions(res.sessions);
-  } else {
-    pill.className = "conn-pill off";
-    txt.textContent = "Disconnected";
-    renderSessions([]);
-  }
-  updateAutoPushUI();
+// ── Resize handles ────────────────────────────────────────────
+function initResizers() {
+  // Sidebar width
+  setupHResize("sb-resize", "sidebar", 150, 400);
+  // Right panel width (dragging moves right boundary)
+  setupHResizeRight("rp-resize", "right-panel", 260, 700);
+  // Bottom panel height
+  setupVResize("bp-resize", "bottom-panel", 80, 500, true);
 }
 
-function renderSessions(sessions) {
-  const sl = document.getElementById("sessions-list");
-  if (!sl) return;
-  if (!sessions.length) {
-    sl.innerHTML = '<div style="padding:8px 0;color:var(--text3);font-size:12px">No active sessions</div>';
-    return;
-  }
-  sl.innerHTML = sessions.map(s => `
-    <div class="sess-item">
-      <span class="sess-dot"></span>
-      <span class="sess-name">${E(s.name)}</span>
-      <span class="sess-proc">${E(s.process||"")}</span>
-      <span class="sess-cwd">${E((s.cwd||"").replace(/^\/Users\/[^/]+/,"~"))}</span>
-    </div>
-  `).join("");
+function setupHResize(handleId, targetId, min, max) {
+  const handle = $(handleId);
+  const target = $(targetId);
+  if (!handle || !target) return;
+  let dragging = false, startX = 0, startW = 0;
+  handle.addEventListener("mousedown", e => {
+    dragging = true; startX = e.clientX; startW = target.offsetWidth;
+    handle.classList.add("dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  });
+  document.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    target.style.width = clamp(startW + (e.clientX - startX), min, max) + "px";
+    editor?.layout();
+  });
+  document.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove("dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    editor?.layout();
+  });
 }
 
-function updateAutoPushUI() {
-  const btn = document.getElementById("auto-push-btn");
-  if (!btn) return;
-  if (S.autoPush && S.sfConnected) {
-    btn.textContent = "⚡ Auto: ON";
-    btn.className = "hdr-btn ap-on";
-  } else if (!S.sfConnected) {
-    btn.textContent = "⚡ Auto";
-    btn.className = "hdr-btn ap-off";
-  } else {
-    btn.textContent = "⚡ Auto";
-    btn.className = "hdr-btn";
-  }
+function setupHResizeRight(handleId, targetId, min, max) {
+  const handle = $(handleId);
+  const target = $(targetId);
+  if (!handle || !target) return;
+  let dragging = false, startX = 0, startW = 0;
+  handle.addEventListener("mousedown", e => {
+    dragging = true; startX = e.clientX; startW = target.offsetWidth;
+    handle.classList.add("dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  });
+  document.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    // Dragging left increases panel, right decreases
+    target.style.width = clamp(startW + (startX - e.clientX), min, max) + "px";
+    editor?.layout();
+  });
+  document.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove("dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    editor?.layout();
+  });
 }
 
-// ── Installed extensions ──────────────────────────────────────
-async function refreshInstalled() {
-  const installed = await window.studio.fsListInstalled();
-  const list = document.getElementById("installed-list");
-  list.innerHTML = installed.length
-    ? installed.map(p => `
-      <div class="inst-item">
-        <div class="inst-name">${E(p.manifest.displayName||p.manifest.name)}</div>
-        <div class="inst-meta">${E(p.manifest.type)} · v${E(p.manifest.version)}
-          <button class="inst-del" onclick="App.uninstall('${E(p.id)}')" title="Uninstall">✕</button>
-        </div>
-      </div>
-    `).join("")
-    : '<div class="empty-installed">No extensions installed</div>';
+function setupVResize(handleId, targetId, min, max, fromBottom) {
+  const handle = $(handleId);
+  const target = $(targetId);
+  if (!handle || !target) return;
+  let dragging = false, startY = 0, startH = 0;
+  handle.addEventListener("mousedown", e => {
+    dragging = true; startY = e.clientY; startH = target.offsetHeight;
+    handle.classList.add("dragging");
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+  });
+  document.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    const dy = fromBottom ? (startY - e.clientY) : (e.clientY - startY);
+    target.style.height = clamp(startH + dy, min, max) + "px";
+    editor?.layout();
+  });
+  document.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove("dragging");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    editor?.layout();
+  });
 }
+
+// ── Console ───────────────────────────────────────────────────
+function handleConsoleKey(e) {
+  if (e.key === "Enter") App.consoleSend();
+}
+window.handleConsoleKey = handleConsoleKey;
 
 // ── Templates ─────────────────────────────────────────────────
 const TMPL = {
   manifest: (name, type) => JSON.stringify({
-    name, version:"1.0.0", type, main:"index.js",
-    displayName: name.split("-").map(w=>w[0].toUpperCase()+w.slice(1)).join(" "),
+    name, version: "1.0.0", type, main: "index.js",
+    displayName: name.split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" "),
     description: "A Shellfire " + type + ".",
     author: "", keywords: [],
-    permissions: type==="extension" ? ["terminal.read","terminal.write","ui.toolbar","ui.statusbar"] : [],
+    permissions: type === "extension"
+      ? ["terminal.read", "terminal.write", "ui.toolbar", "ui.statusbar"]
+      : [],
   }, null, 2),
 
-  extension: `// Shellfire Extension — full API at https://shellfire.dev/docs#api-terminal
+  extension: `// Shellfire Extension
+// Full API docs: https://shellfire.dev/docs#api-terminal
+//
+// Type "api." to see full autocomplete — all methods are typed.
+
 module.exports = {
+  /**
+   * Called when the extension is activated.
+   * @param {typeof api} api
+   */
   activate(api) {
-    // ── Toolbar button ───────────────────────────────────────────
-    api.ui.toolbar.add({
-      id: 'my-ext.btn',
+    // ── Add a toolbar button ─────────────────────────────────────
+    const btn = api.ui.toolbar.add({
+      id: 'my-ext.action',
       icon: '⚡',
-      tooltip: 'Run action',
+      tooltip: 'Run My Action',
       onClick() {
         api.terminal.send('echo "Hello from My Extension!"\\n');
       },
     });
 
-    // ── Status bar widget ────────────────────────────────────────
+    // ── Add a status bar widget ──────────────────────────────────
     const widget = api.ui.statusbar.add({
       id: 'my-ext.status',
       text: '🟢 Ready',
       tooltip: 'Extension status',
+      onClick() { api.terminal.send('git status\\n'); },
     });
 
     // ── Watch terminal output ────────────────────────────────────
-    const sub = api.terminal.onOutput((data, id) => {
+    const sub = api.terminal.onOutput((data) => {
       if (data.includes('error') || data.includes('Error')) {
-        widget.setText('🔴 Error');
-      } else if (data.includes('✓') || data.includes('success')) {
-        widget.setText('🟢 OK');
+        widget.setText('🔴 Error detected');
       }
+    });
+
+    // ── Register a command palette entry ─────────────────────────
+    api.commands.register({
+      id: 'my-ext.run',
+      name: 'My Extension: Run Action',
+      keybinding: 'Cmd+Shift+Y',
+      run() { api.terminal.send('echo "Run from palette"\\n'); },
     });
   },
 
   deactivate() {
-    // Automatic cleanup: toolbar buttons and status widgets
-    // Clear any manual timers or subscriptions here
+    // Toolbar buttons and status widgets clean up automatically.
+    // Clear any manual timers or subscriptions here.
   },
 };`,
 
   theme: `// Shellfire Theme Extension
+// Provide all 16 terminal colors + optional UI chrome overrides.
+// The preview updates live as you edit the colors.
+
 module.exports = {
   colors: {
-    // Terminal palette (all 16 required)
+    // ── Required: 16 terminal colors ────────────────────────────
     background:    "#1e1e2e",
     foreground:    "#cdd6f4",
     cursor:        "#f5e0dc",
     selection:     "#585b70",
+
     black:         "#45475a",
     red:           "#f38ba8",
     green:         "#a6e3a1",
@@ -461,6 +971,7 @@ module.exports = {
     magenta:       "#f5c2e7",
     cyan:          "#94e2d5",
     white:         "#bac2de",
+
     brightBlack:   "#585b70",
     brightRed:     "#f38ba8",
     brightGreen:   "#a6e3a1",
@@ -469,7 +980,8 @@ module.exports = {
     brightMagenta: "#f5c2e7",
     brightCyan:    "#94e2d5",
     brightWhite:   "#a6adc8",
-    // UI chrome (optional)
+
+    // ── Optional: UI chrome ──────────────────────────────────────
     uiBackground:  "#1e1e2e",
     uiAccent:      "#cba6f7",
   },
@@ -478,249 +990,234 @@ module.exports = {
 
 // ── App ───────────────────────────────────────────────────────
 const App = {
-  // ── File ops ──────────────────────────────────────────────
-  newProject(type = "extension") {
-    const name = "my-" + type;
+  // ── New projects ──────────────────────────────────────────
+  newExt() {
+    this._initProject("my-extension", "extension");
+  },
+  newTheme() {
+    this._initProject("my-theme", "theme");
+  },
+  _initProject(name, type) {
     S.files = {
       "plugin.json": { content: TMPL.manifest(name, type), dirty: false },
       "index.js":    { content: TMPL[type] || TMPL.extension, dirty: false },
     };
-    S.openTabs = []; S.activeFile = null; S.folderPath = null;
+    S.tabs = []; S.active = null; S.folder = null;
+    setCrumb(`New ${type}`);
     this.openTab("index.js");
-    log(`New ${type} project created`, "ok");
+    log(`New ${type} project — start coding!`, "ok");
   },
 
   newFile() {
-    const name = prompt("Filename (e.g. helper.js):");
+    const name = prompt("Filename (e.g. utils.js):");
     if (!name || S.files[name] !== undefined) return;
-    S.files[name] = { content: "", dirty: true };
+    S.files[name] = { content: "// " + name + "\n", dirty: true };
     this.openTab(name);
   },
 
   async openFolder() {
     const res = await window.studio.fsOpenFolder();
-    if (res.canceled || res.error) { if(res.error) log(res.error,"error"); return; }
-    S.folderPath = res.dir;
+    if (res.canceled || res.error) { if (res.error) log(res.error, "error"); return; }
+    S.folder = res.dir;
     S.files = {};
     for (const [name, f] of Object.entries(res.files || {})) {
       S.files[name] = { content: f.content, dirty: false, path: f.path };
     }
-    S.openTabs = []; S.activeFile = null;
-    const toOpen = ["plugin.json","index.js"].filter(n=>S.files[n]);
+    S.tabs = []; S.active = null;
+    const toOpen = ["plugin.json", "index.js"].filter(n => S.files[n]);
     for (const n of (toOpen.length ? toOpen : Object.keys(S.files).slice(0,2))) this.openTab(n);
+    setCrumb(res.dir);
     log(`Opened ${res.dir.split("/").pop()} (${Object.keys(S.files).length} files)`, "ok");
-    renderFiles();
   },
 
   openTab(name) {
-    if (S.activeFile && S.files[S.activeFile] && cm) {
-      S.files[S.activeFile].content = cm.getValue();
+    // Sync editor content back to state before switching
+    if (S.active && editor && S.files[S.active]) {
+      S.files[S.active].content = editor.getValue();
     }
-    S.activeFile = name;
-    if (!S.openTabs.includes(name)) S.openTabs.push(name);
-
-    initEditor();
-    const f = S.files[name];
-    cm.setValue(f?.content || "");
-    cm.setOption("mode", cmMode(name));
-    cm.clearHistory();
-    cm.focus();
-
-    renderTabs();
-    renderFiles();
-    scheduleLiveUpdate();
+    openInEditor(name);
   },
 
   closeTab(name) {
-    if (S.activeFile && cm) S.files[S.activeFile].content = cm.getValue();
-    S.openTabs = S.openTabs.filter(t => t !== name);
-    if (S.activeFile === name) {
-      const next = S.openTabs.at(-1);
-      if (next) this.openTab(next);
-      else { S.activeFile = null; cm?.setValue(""); renderTabs(); renderFiles(); }
-    } else { renderTabs(); }
+    if (S.active && editor && S.files[S.active]) {
+      S.files[S.active].content = editor.getValue();
+    }
+    // Dispose Monaco model
+    const uri = monaco?.Uri?.parse?.(`file:///${name}`);
+    if (uri) {
+      const m = monaco?.editor?.getModel?.(uri);
+      m?.dispose();
+    }
+    S.tabs = S.tabs.filter(t => t !== name);
+    if (S.active === name) {
+      const next = S.tabs.at(-1);
+      if (next) openInEditor(next);
+      else {
+        S.active = null;
+        editor?.setModel(null);
+        $("empty-state")?.classList.remove("hidden");
+        $("monaco-container")?.classList.add("hidden");
+        renderTabs(); renderTree();
+        $("bc-file").textContent = "—";
+        setPreviewStatus("idle", "Preview idle");
+      }
+    } else {
+      renderTabs();
+    }
   },
 
-  async saveActive() {
-    if (!S.activeFile || !cm) return;
-    const f = S.files[S.activeFile];
+  async save() {
+    if (!S.active || !editor) return;
+    const f = S.files[S.active];
     if (!f) return;
-    f.content = cm.getValue();
-    const savePath = f.path || (S.folderPath ? `${S.folderPath}/${S.activeFile}` : null);
+    f.content = editor.getValue();
+    const savePath = f.path || (S.folder ? `${S.folder}/${S.active}` : null);
     if (savePath) {
       const r = await window.studio.fsWrite(savePath, f.content);
-      if (r.ok) { f.path = savePath; f.dirty = false; renderTabs(); renderFiles(); log(`Saved ${S.activeFile}`, "ok"); }
+      if (r.ok) { f.path = savePath; f.dirty = false; renderTabs(); renderTree(); log(`Saved ${S.active}`, "ok"); }
       else log(`Save failed: ${r.error}`, "error");
     } else {
+      // Save all to temp dir
       await this.saveAll();
     }
+    if (S.autoPush && S.connected) this.push(true);
   },
 
   async saveAll() {
-    if (S.activeFile && cm) S.files[S.activeFile].content = cm.getValue();
-    const baseDir = S.folderPath || `/tmp/sf-studio-${Date.now()}`;
-    let count = 0;
-    for (const [name, f] of Object.entries(S.files)) {
-      const p = f.path || `${baseDir}/${name}`;
-      const r = await window.studio.fsWrite(p, f.content);
-      if (r.ok) { f.path = p; f.dirty = false; count++; }
+    if (S.active && editor && S.files[S.active]) {
+      S.files[S.active].content = editor.getValue();
     }
-    S.folderPath = S.folderPath || baseDir;
-    renderTabs(); renderFiles();
-    log(`Saved ${count} files`, "ok");
+    const base = S.folder || `/tmp/sf-studio-${Date.now()}`;
+    let n = 0;
+    for (const [name, f] of Object.entries(S.files)) {
+      const p = f.path || `${base}/${name}`;
+      const r = await window.studio.fsWrite(p, f.content);
+      if (r.ok) { f.path = p; f.dirty = false; n++; }
+    }
+    S.folder = S.folder || base;
+    renderTabs(); renderTree();
+    log(`Saved ${n} files`, "ok");
   },
 
-  // ── Push to Shellfire ──────────────────────────────────────
-  async pushToShellfire(silent = false) {
-    if (S.activeFile && cm) S.files[S.activeFile].content = cm.getValue();
+  async push(silent = false) {
+    if (S.active && editor && S.files[S.active]) {
+      S.files[S.active].content = editor.getValue();
+    }
     const id = getPluginId();
     const mf = getManifest();
     const files = {};
-    for (const [n,f] of Object.entries(S.files)) files[n] = f.content;
+    for (const [n, f] of Object.entries(S.files)) files[n] = f.content;
 
     if (!silent) log(`Pushing "${id}" to Shellfire…`, "info");
     const res = await window.studio.sfInstall({ id, files, type: mf.type || "extension" });
-
     if (res.error) { log(`✗ Push failed: ${res.error}`, "error"); return; }
     if (res.reloaded) {
       if (!silent) log(`✓ "${id}" hot-reloaded in Shellfire`, "ok");
     } else {
-      log(`✓ "${id}" installed (${res.msg})`, "ok");
+      log(`✓ "${id}" files written (${res.msg})`, "ok");
     }
     refreshInstalled();
   },
 
-  toggleAutoPush() {
-    if (!S.sfConnected) { log("Not connected to Shellfire v3", "warn"); return; }
+  toggleAuto() {
+    if (!S.connected) { log("Not connected to Shellfire v3", "warn"); return; }
     S.autoPush = !S.autoPush;
-    updateAutoPushUI();
-    log(S.autoPush ? "Auto-push ON — changes deploy on every save" : "Auto-push OFF", S.autoPush?"ok":"info");
+    updateAutoPushBtn();
+    log(`Auto-push ${S.autoPush ? "ON — changes deploy on save" : "OFF"}`, S.autoPush ? "ok" : "info");
   },
 
-  // ── Export ─────────────────────────────────────────────────
-  async exportTermext() {
-    if (S.activeFile && cm) S.files[S.activeFile].content = cm.getValue();
-    const name = getPluginId();
-    const r = await window.studio.fsSaveDialog(`${name}.termext`);
-    if (r.canceled) return;
-    const files = {};
-    for (const [n,f] of Object.entries(S.files)) files[n] = f.content;
-    const res = await window.studio.fsExportTermext({ files, name, outPath: r.filePath });
-    if (res.ok) log(`Exported ${name}.termext`, "ok");
-    else log(`Export failed: ${res.error}`, "error");
-  },
-
-  // ── Preview pop-out ────────────────────────────────────────
-  async popOutPreview() {
+  async popout() {
     const res = await window.studio.previewOpen();
     if (res.ok) {
-      S.previewPopped = true;
-      document.getElementById("popout-btn").textContent = "⤢ Preview ✓";
-      // Send current code immediately
-      const f = S.files[S.activeFile];
+      S.popoutOpen = true;
+      $("popout-btn").textContent = "⤢ Preview ✓";
+      $("popout-btn").classList.add("open");
+      const f = S.files[S.active];
       if (f) window.studio.previewSendCode(f.content, getManifest());
       log("Preview opened in separate window", "ok");
     }
   },
 
-  // ── Uninstall ──────────────────────────────────────────────
+  async export() {
+    if (S.active && editor) S.files[S.active].content = editor.getValue();
+    const name = getPluginId();
+    const r = await window.studio.fsSaveDialog(`${name}.termext`);
+    if (r.canceled) return;
+    const files = {};
+    for (const [n, f] of Object.entries(S.files)) files[n] = f.content;
+    const res = await window.studio.fsExportTermext({ files, name, outPath: r.filePath });
+    if (res.ok) log(`Exported ${name}.termext`, "ok");
+    else log(`Export failed: ${res.error || "unknown error"}`, "error");
+  },
+
   async uninstall(id) {
     if (!confirm(`Uninstall "${id}"?`)) return;
     const res = await window.studio.sfUninstall(id);
     if (res.ok) { log(`Uninstalled "${id}"`, "ok"); refreshInstalled(); }
-    else log(`Uninstall failed: ${res.error}`, "error");
+    else log(`Failed: ${res.error}`, "error");
   },
 
-  // ── Console ────────────────────────────────────────────────
-  consoleKeydown(e) { if (e.key==="Enter") this.consoleSend(); },
   async consoleSend() {
-    const inp = document.getElementById("console-input");
-    const text = inp.value.trim(); if (!text) return;
+    const inp = $("console-input");
+    const text = inp?.value?.trim();
+    if (!text) return;
     inp.value = "";
-    if (!S.sfConnected) { log("Not connected","warn"); return; }
-    if (!S.sfSessions.length) { log("No sessions","warn"); return; }
-    const session = S.sfSessions[0];
+    if (!S.connected) { log("Not connected to Shellfire v3", "warn"); return; }
+    if (!S.sessions.length) { log("No active sessions", "warn"); return; }
+    const session = S.sessions[0];
     log(`[${session.name}] → ${text}`, "info");
-    const send = await window.studio.sfSend({ name: session.name, text: text+"\n" });
-    if (send.error) { log(send.error,"error"); return; }
+    const r = await window.studio.sfSend({ name: session.name, text: text + "\n" });
+    if (r.error) { log(r.error, "error"); return; }
     setTimeout(async () => {
       const out = await window.studio.sfRead({ name: session.name, lines: 10 });
-      if (out.output) log(out.output.split("\n").slice(-6).join("\n"), "info");
+      if (out.output?.trim()) log(out.output.trim().split("\n").slice(-5).join("\n"), "info");
     }, 900);
   },
 };
 
-// ── Resizable panels ──────────────────────────────────────────
-function initResize() {
-  const divider = document.getElementById("h-divider");
-  const left = document.getElementById("filesidebar");
-  const right = document.getElementById("right-col");
-  let dragging = false, startX = 0, startW = 0, startR = 0;
-
-  divider?.addEventListener("mousedown", e => {
-    dragging = true; startX = e.clientX;
-    startW = left.offsetWidth; startR = right.offsetWidth;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  });
-
-  document.addEventListener("mousemove", e => {
-    if (!dragging) return;
-    const dx = e.clientX - startX;
-    const nw = Math.max(160, Math.min(360, startW + dx));
-    left.style.width = nw + "px";
-  });
-  document.addEventListener("mouseup", () => {
-    dragging = false;
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    cm?.refresh();
-  });
-
-  // Right col resize
-  const rdivider = document.getElementById("r-divider");
-  let rDrag = false, rStartX = 0, rStartW = 0;
-  rdivider?.addEventListener("mousedown", e => {
-    rDrag = true; rStartX = e.clientX; rStartW = right.offsetWidth;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  });
-  document.addEventListener("mousemove", e => {
-    if (!rDrag) return;
-    const dx = rStartX - e.clientX;
-    const nw = Math.max(280, Math.min(700, rStartW + dx));
-    right.style.width = nw + "px";
-    cm?.refresh();
-  });
-  document.addEventListener("mouseup", () => {
-    if (!rDrag) return;
-    rDrag = false;
-    document.body.style.cursor = "";
-    document.body.style.userSelect = "";
-    cm?.refresh();
-  });
+// ── Helpers ───────────────────────────────────────────────────
+function setCrumb(path) {
+  const el = $("crumb-text");
+  if (el) el.textContent = path ? path.replace(/^\/Users\/[^/]+/, "~") : "No project open";
 }
 
-// ── Keyboard shortcuts ────────────────────────────────────────
+// ── Global keyboard ───────────────────────────────────────────
 document.addEventListener("keydown", e => {
   const m = e.metaKey || e.ctrlKey;
-  if (m && e.key==="s") { e.preventDefault(); App.saveActive(); }
-  if (m && e.key==="n") { e.preventDefault(); App.newFile(); }
-  if (m && e.key==="o") { e.preventDefault(); App.openFolder(); }
-  if (m && e.shiftKey && e.key==="P") { e.preventDefault(); App.popOutPreview(); }
-  if (m && e.shiftKey && e.key==="R") { e.preventDefault(); App.pushToShellfire(); }
+  if (m && !e.shiftKey && e.key === "s") { e.preventDefault(); App.save(); }
+  if (m && !e.shiftKey && e.key === "o") { e.preventDefault(); App.openFolder(); }
+  if (m && e.shiftKey && e.key === "R")  { e.preventDefault(); App.push(); }
+  if (m && e.shiftKey && e.key === "P")  { e.preventDefault(); App.popout(); }
+  if (e.key === "Escape") $("console-input")?.blur();
 });
+
+// Expose for HTML onclick
+window.App = App;
+window.EmbPreview = EmbPreview;
+window.refreshInstalled = refreshInstalled;
+window.switchActivity = switchActivity;
+window.switchBP = switchBP;
+window.switchRP = switchRP;
+window.toggleBottomPanel = toggleBottomPanel;
 
 // ── Init ──────────────────────────────────────────────────────
 (async () => {
-  initResize();
-  await pollConnection();
-  await refreshInstalled();
-  setInterval(pollConnection, 5000);
-  log("Shellfire Studio ready ⌘S save · ⌘O open · ⌘⇧R push · ⌘⇧P preview", "ok");
+  initResizers();
+  scalePreview();
+  new ResizeObserver(() => { editor?.layout(); scalePreview(); }).observe(document.body);
 
-  // Check if preview window was open
+  await pollConn();
+  await refreshInstalled();
+  setInterval(pollConn, 5000);
+
+  log("Shellfire Studio ready", "ok");
+  log("New Extension / Theme → type 'api.' for full autocomplete", "info");
+  log("⌘S Save  ·  ⌘⇧R Push Live  ·  ⌘⇧P Pop Preview", "info");
+
   const isOpen = await window.studio.previewIsOpen();
-  S.previewPopped = !!isOpen;
-  if (isOpen) document.getElementById("popout-btn").textContent = "⤢ Preview ✓";
+  S.popoutOpen = !!isOpen;
+  if (isOpen) {
+    $("popout-btn").textContent = "⤢ Preview ✓";
+    $("popout-btn").classList.add("open");
+  }
 })();
