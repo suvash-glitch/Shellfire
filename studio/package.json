@@ -1,0 +1,13 @@
+{
+  "name": "shellfire-studio",
+  "version": "1.0.0",
+  "description": "Visual extension builder for Shellfire",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^35.7.5"
+  }
+}
