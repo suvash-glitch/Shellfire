@@ -102,7 +102,7 @@ function registerHandlers() {
   ipcMain.handle("load-plugins", () => loadPlugins());
 
   ipcMain.handle("get-plugin-code", (_, pluginName) => {
-    if (typeof pluginName !== "string" || !SAFE_NAME.test(pluginName)) return { error: "Invalid plugin name" };
+    if (typeof pluginName !== "string" || !SAFE_PLUGIN_ID.test(pluginName)) return { error: "Invalid plugin name" };
     const plugin = loadPlugins().find(p => p.manifest.name === pluginName);
     if (!plugin) return { error: "Plugin not found" };
     try {

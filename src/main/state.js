@@ -45,8 +45,11 @@ function getWindow() { return mainWindow; }
 function setWindow(w) { mainWindow = w; }
 
 function sendToRenderer(channel, ...args) {
-  if (mainWindow && !mainWindow.isDestroyed()) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
     mainWindow.webContents.send(channel, ...args);
+  } catch {
+    // Renderer frame disposed during window init/reload — safe to ignore
   }
 }
 

@@ -177,6 +177,16 @@ async function handleCommand(cmd, conn) {
       break;
     }
 
+    case "open-builder": {
+      try {
+        require("../extension-builder/window").openExtensionBuilder();
+        conn.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        conn.end(JSON.stringify({ error: e.message }));
+      }
+      break;
+    }
+
     default:
       conn.end(JSON.stringify({ error: `Unknown action: ${cmd.action}` }));
   }
