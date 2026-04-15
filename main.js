@@ -17,8 +17,6 @@ const aiService = require("./src/main/ai-service");
 const sshManager = require("./src/main/ssh-manager");
 const systemHandlers = require("./src/main/system-handlers");
 const pluginSystem = require("./src/main/plugin-system");
-const extensionBuilder = require("./src/extension-builder/window");
-const builderHandlers = require("./src/extension-builder/ipc-handlers");
 
 // ── Register all IPC handlers ─────────────────────────────────
 ptyManager.registerHandlers();
@@ -28,8 +26,6 @@ sshManager.registerHandlers();
 systemHandlers.registerHandlers();
 pluginSystem.registerHandlers();
 windowManager.registerHandlers();
-extensionBuilder.registerHandlers();
-builderHandlers.registerHandlers();
 
 // ── App lifecycle ─────────────────────────────────────────────
 app.whenReady().then(() => {
@@ -39,18 +35,15 @@ app.whenReady().then(() => {
 });
 
 app.on("activate", () => {
-  // macOS: re-create window when dock icon is clicked and no windows are open
   const { getWindow } = require("./src/main/state");
   if (!getWindow()) windowManager.createWindow();
 });
 
 app.on("window-all-closed", () => {
-  // macOS: keep app running when last window is closed (PTYs stay alive)
   if (process.platform !== "darwin") app.quit();
 });
 
 app.on("before-quit", () => {
-  // Kill all PTYs, clean up socket, clear update interval
   for (const [, p] of ptys) { try { p.kill(); } catch {} }
   socketServer.cleanup();
   windowManager.cleanup();

@@ -177,33 +177,6 @@ async function handleCommand(cmd, conn) {
       break;
     }
 
-    case "reload-extension": {
-      if (typeof cmd.id !== "string" || !cmd.id) {
-        conn.end(JSON.stringify({ error: "id required" })); break;
-      }
-      const safeId   = JSON.stringify(cmd.id);
-      const safeType = JSON.stringify(cmd.type || "extension");
-      try {
-        const result = await win.webContents.executeJavaScript(`
-          window.__reloadExtension ? window.__reloadExtension(${safeId}, ${safeType}) : { error: "not supported" }
-        `);
-        conn.end(JSON.stringify(result || { ok: true }));
-      } catch (e) {
-        conn.end(JSON.stringify({ error: e.message }));
-      }
-      break;
-    }
-
-    case "open-builder": {
-      try {
-        require("../extension-builder/window").openExtensionBuilder();
-        conn.end(JSON.stringify({ ok: true }));
-      } catch (e) {
-        conn.end(JSON.stringify({ error: e.message }));
-      }
-      break;
-    }
-
     default:
       conn.end(JSON.stringify({ error: `Unknown action: ${cmd.action}` }));
   }

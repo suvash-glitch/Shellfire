@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## What This Is
 
-Shellfire is an AI-powered terminal multiplexer built with Electron. It provides split panes, tabs, AI autocomplete (Claude / OpenAI / Gemini / Ollama), SSH remote sessions, Docker management, a plugin/extension system, a visual Extension Builder with AI assistance, and a CLI + MCP server for programmatic control.
+Shellfire is an AI-powered terminal multiplexer built with Electron. It provides split panes, tabs, AI autocomplete (Claude / OpenAI / Gemini / Ollama), SSH remote sessions, Docker management, a plugin/extension system, and a CLI + MCP server for programmatic control.
 
 ---
 
@@ -43,20 +43,6 @@ Shellfire follows Electron's two-process model with strict context isolation.
 | `src/main/system-handlers.js` | Cron, Docker, ports, git, system stats, file dialogs, pipeline runner |
 | `src/main/plugin-system.js` | Plugin load/install/uninstall, marketplace registry, .termext packaging |
 | `src/main/window-manager.js` | BrowserWindow creation, auto-updater, zen mode, zoom, window controls |
-
-### Extension Builder (`src/extension-builder/`)
-
-A dedicated Electron BrowserWindow for authoring extensions:
-
-| File | Role |
-|------|------|
-| `window.js` | Opens/focuses the builder window; registers `open-extension-builder` IPC |
-| `preload.js` | Context bridge — exposes `window.builder.*` to the UI |
-| `ipc-handlers.js` | File I/O, AI generation, install, export handlers |
-| `index.html` | Builder UI shell |
-| `renderer.js` | Editor, file tree, AI chat, manifest form, tab management |
-
-Open via `Cmd+Shift+E` or **Extensions → Extension Builder**.
 
 ### Renderer (`renderer.js`)
 
@@ -123,7 +109,4 @@ All user data lives in `app.getPath("userData")` (e.g. `~/Library/Application Su
 
 ## Extension Development
 
-See `docs/extension-api.md` for the full Extension API reference.
-
-Use the visual Extension Builder (`Cmd+Shift+E`) for AI-assisted development.
-Example extensions: `examples/plugins/`.
+Extensions live in `~/.shellfire/plugins/{name}/`. Drop a folder with `plugin.json` + `index.js` there and restart Shellfire. See `docs/extension-api.md` for the API reference and `examples/plugins/` for working examples.
