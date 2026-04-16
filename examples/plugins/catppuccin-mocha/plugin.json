@@ -1,7 +1,0 @@
-{
-  "name": "catppuccin-mocha",
-  "version": "1.0.0",
-  "description": "Warm dark base with soft pastel colors from the Catppuccin Mocha palette",
-  "type": "theme",
-  "main": "index.js"
-}

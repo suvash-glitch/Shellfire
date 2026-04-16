@@ -365,20 +365,38 @@ async function createPaneObj(cwd, restoreCmd, replayBuffer, existingId) {
   header.addEventListener("dblclick", (e) => { e.preventDefault(); renamePaneUI(id); });
   header.addEventListener("contextmenu", (e) => { e.preventDefault(); showContextMenu(e.clientX, e.clientY, id); });
 
-  // Drag & drop
+  // Drag & drop — listeners on header only (not document), disposed with the pane
   header.setAttribute("draggable", "true");
-  header.addEventListener("dragstart", (e) => { isDragging = true; el._dragId = id; e.dataTransfer.effectAllowed = "move"; header.style.opacity = "0.5"; });
-  header.addEventListener("dragend", () => { header.style.opacity = ""; isDragging = false; fitAllTerminals(); });
-  header.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
-  header.addEventListener("dragenter", () => { header.style.borderBottom = "2px solid var(--t-accent)"; });
-  header.addEventListener("dragleave", () => { header.style.borderBottom = ""; });
+  header.addEventListener("dragstart", (e) => {
+    isDragging = true; el._dragId = id;
+    e.dataTransfer.effectAllowed = "move";
+    header.style.opacity = "0.5";
+  });
+  header.addEventListener("dragend", () => {
+    header.style.opacity = ""; isDragging = false; fitAllTerminals();
+  });
+  header.addEventListener("dragover", (e) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
+  });
+  header.addEventListener("dragenter", () => {
+    header.style.borderBottom = "2px solid var(--t-accent)";
+  });
+  header.addEventListener("dragleave", (e) => {
+    // Only clear if actually leaving the header (not entering a child)
+    if (!header.contains(e.relatedTarget)) header.style.borderBottom = "";
+  });
   header.addEventListener("drop", (e) => {
     e.preventDefault(); header.style.borderBottom = "";
-    const fromEl = document.querySelector(".pane[style*='opacity']");
     const fromId = [...panes.entries()].find(([, p]) => p.el._dragId)?.[0];
     if (!fromId || fromId === id) return;
     const from = findPaneInLayout(fromId), to = findPaneInLayout(id);
-    if (from && to) { const tmp = layout[from.ri].cols[from.ci].paneId; layout[from.ri].cols[from.ci].paneId = layout[to.ri].cols[to.ci].paneId; layout[to.ri].cols[to.ci].paneId = tmp; renderLayout(); showToast("Panes swapped"); }
+    if (from && to) {
+      const tmp = layout[from.ri].cols[from.ci].paneId;
+      layout[from.ri].cols[from.ci].paneId = layout[to.ri].cols[to.ci].paneId;
+      layout[to.ri].cols[to.ci].paneId = tmp;
+      renderLayout();
+      showToast("Panes swapped");
+    }
     delete panes.get(fromId)?.el._dragId;
   });
 

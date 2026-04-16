@@ -1,7 +1,0 @@
-{
-  "name": "quick-ssh",
-  "version": "1.0.0",
-  "description": "SSH connection manager with saved hosts, one-click connect, and connection profiles",
-  "type": "extension",
-  "main": "index.js"
-}

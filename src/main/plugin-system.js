@@ -79,15 +79,26 @@ async function installFromZip(zipPath, destId) {
   const tmpDir = path.join(app.getPath("temp"), `termext-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   try {
-    await execFileAsync("unzip", ["-o", "-q", zipPath, "-d", tmpDir], { timeout: 10000 });
+    // -j: junk paths (no dir traversal), -n: never overwrite existing
+    // We avoid -o (overwrite) to prevent symlink attacks where a symlink
+    // in the zip could overwrite files outside the destination.
+    await execFileAsync("unzip", ["-j", "-q", zipPath, "-d", tmpDir], { timeout: 10000 });
     const manifestPath = path.join(tmpDir, "plugin.json");
     if (!fs.existsSync(manifestPath)) throw new Error("Package missing plugin.json");
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     if (!manifest.name || !VALID_TYPES.has(manifest.type) || !manifest.main) throw new Error("Invalid plugin manifest");
     const id = destId || manifest.name.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase();
-    const dest = path.join(PLUGINS_DIR, id);
+    const dest = resolvePluginDest(id);
+    if (!dest) throw new Error("Invalid plugin id");
     if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
-    fs.cpSync(tmpDir, dest, { recursive: true });
+    // Copy without following symlinks — prevents symlink escape from tmpDir
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(tmpDir, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue; // skip symlinks entirely
+      if (entry.isFile()) {
+        fs.copyFileSync(path.join(tmpDir, entry.name), path.join(dest, entry.name));
+      }
+    }
     return { ok: true, id, manifest };
   } finally {
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}

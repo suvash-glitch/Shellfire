@@ -1,9 +1,0 @@
-{
-  "name": "claude-ai",
-  "version": "2.0.0",
-  "description": "AI autocomplete and chat — supports Anthropic, OpenAI, Google Gemini, Ollama, and OpenAI-compatible providers",
-  "type": "extension",
-  "main": "index.js",
-  "author": "Shellfire",
-  "homepage": "https://github.com/suvash-glitch/Shellfire"
-}

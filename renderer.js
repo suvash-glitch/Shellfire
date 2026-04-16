@@ -875,20 +875,38 @@ async function createPaneObj(cwd, restoreCmd, replayBuffer, existingId) {
   header.addEventListener("dblclick", (e) => { e.preventDefault(); renamePaneUI(id); });
   header.addEventListener("contextmenu", (e) => { e.preventDefault(); showContextMenu(e.clientX, e.clientY, id); });
 
-  // Drag & drop
+  // Drag & drop — listeners on header only (not document), disposed with the pane
   header.setAttribute("draggable", "true");
-  header.addEventListener("dragstart", (e) => { isDragging = true; el._dragId = id; e.dataTransfer.effectAllowed = "move"; header.style.opacity = "0.5"; });
-  header.addEventListener("dragend", () => { header.style.opacity = ""; isDragging = false; fitAllTerminals(); });
-  header.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
-  header.addEventListener("dragenter", () => { header.style.borderBottom = "2px solid var(--t-accent)"; });
-  header.addEventListener("dragleave", () => { header.style.borderBottom = ""; });
+  header.addEventListener("dragstart", (e) => {
+    isDragging = true; el._dragId = id;
+    e.dataTransfer.effectAllowed = "move";
+    header.style.opacity = "0.5";
+  });
+  header.addEventListener("dragend", () => {
+    header.style.opacity = ""; isDragging = false; fitAllTerminals();
+  });
+  header.addEventListener("dragover", (e) => {
+    e.preventDefault(); e.dataTransfer.dropEffect = "move";
+  });
+  header.addEventListener("dragenter", () => {
+    header.style.borderBottom = "2px solid var(--t-accent)";
+  });
+  header.addEventListener("dragleave", (e) => {
+    // Only clear if actually leaving the header (not entering a child)
+    if (!header.contains(e.relatedTarget)) header.style.borderBottom = "";
+  });
   header.addEventListener("drop", (e) => {
     e.preventDefault(); header.style.borderBottom = "";
-    const fromEl = document.querySelector(".pane[style*='opacity']");
     const fromId = [...panes.entries()].find(([, p]) => p.el._dragId)?.[0];
     if (!fromId || fromId === id) return;
     const from = findPaneInLayout(fromId), to = findPaneInLayout(id);
-    if (from && to) { const tmp = layout[from.ri].cols[from.ci].paneId; layout[from.ri].cols[from.ci].paneId = layout[to.ri].cols[to.ci].paneId; layout[to.ri].cols[to.ci].paneId = tmp; renderLayout(); showToast("Panes swapped"); }
+    if (from && to) {
+      const tmp = layout[from.ri].cols[from.ci].paneId;
+      layout[from.ri].cols[from.ci].paneId = layout[to.ri].cols[to.ci].paneId;
+      layout[to.ri].cols[to.ci].paneId = tmp;
+      renderLayout();
+      showToast("Panes swapped");
+    }
     delete panes.get(fromId)?.el._dragId;
   });
 
@@ -1511,10 +1529,13 @@ async function saveCurrentSession(silent) {
   const paneStates = [];
   for (const [id] of panes) {
     const pane = panes.get(id);
+    if (!pane) continue; // may have been removed during iteration
     // Fetch fresh CWD and process info (async IPC)
     try {
       pane._lastCwd = await window.shellfire.getCwd(id) || pane._lastCwd || null;
     } catch {}
+    // Re-check pane still exists after each await
+    if (!panes.get(id)) continue;
     try {
       const proc = await window.shellfire.getProcessTree(id);
       if (proc && proc.args) {
@@ -1526,6 +1547,7 @@ async function saveCurrentSession(silent) {
         }
       }
     } catch {}
+    if (!panes.get(id)) continue;
     // Compact raw chunks into rawBuffer
     if (pane._rawChunks && pane._rawChunks.length > 0) {
       pane.rawBuffer = pane._rawChunks.join("").slice(-bufferLimit);
@@ -5062,12 +5084,12 @@ async function refreshSmartNames() {
     if (!pane) continue;
     const smart = await getSmartName(id);
     if (!smart) continue;
-    // Auto-name: set as the pane's name so it sticks in tabs, sidebar, CLI
-    // Don't overwrite user-set custom names (set via rename UI)
-    if (!pane._userRenamed) {
-      pane.customName = smart;
-      if (pane.titleEl) pane.titleEl.textContent = smart;
-    }
+    // Re-check pane still exists after the async IPC call —
+    // it may have been closed while we were awaiting.
+    const paneNow = panes.get(id);
+    if (!paneNow || paneNow._userRenamed) continue;
+    paneNow.customName = smart;
+    if (paneNow.titleEl) paneNow.titleEl.textContent = smart;
   }
 }
 // Scale interval with pane count: 4s base, +1s per pane above 5
@@ -5193,8 +5215,9 @@ function updateIdeSidebar() {
     }
   }
 
-  // Render
-  ideSidebarBody.innerHTML = "";
+  // Render — use replaceChildren() instead of innerHTML="" to preserve
+  // scroll position and avoid destroying detached listeners on the old nodes.
+  ideSidebarBody.replaceChildren();
 
   // If we have project groups, render them
   for (const [projectName, items] of groups) {
@@ -5642,9 +5665,11 @@ document.querySelectorAll(".settings-nav-item").forEach(item => {
     switchSettingsTab(item.dataset.tab);
   });
 });
-// Search
+// Search — debounced to avoid DOM thrashing on rapid typing
+let _settingsSearchTimer;
 document.getElementById("settings-search").addEventListener("input", (e) => {
-  searchSettings(e.target.value);
+  clearTimeout(_settingsSearchTimer);
+  _settingsSearchTimer = setTimeout(() => searchSettings(e.target.value), 80);
 });
 // Auto-apply on change
 ["setting-theme", "setting-font-size", "setting-cursor-style", "setting-scrollback", "setting-buffer-limit", "setting-auto-save-interval"].forEach(id => {

@@ -163,7 +163,10 @@ function registerHandlers(ptys) {
     let count = 0;
     for (const s of secrets) {
       if (s.key && SAFE_KEY.test(s.key) && typeof s.value === "string") {
-        p.write(` export ${s.key}=${JSON.stringify(s.value)}\n`);
+        // Use single-quote shell escaping so the value is never evaluated.
+        // JSON.stringify would allow $(cmd) or `cmd` substitution inside double quotes.
+        const safeVal = s.value.replace(/'/g, "'\\''");
+        p.write(` export ${s.key}='${safeVal}'\n`);
         count++;
       }
     }
@@ -172,6 +175,9 @@ function registerHandlers(ptys) {
 
   // Terminal logging
   ipcMain.on("log-append", (_, paneId, data) => {
+    // Validate paneId is a safe integer to prevent path traversal
+    if (typeof paneId !== "number" || !Number.isInteger(paneId) || paneId < 1) return;
+    if (typeof data !== "string") return;
     try {
       if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
       fs.appendFileSync(path.join(LOG_DIR, `terminal-${paneId}.log`), data);

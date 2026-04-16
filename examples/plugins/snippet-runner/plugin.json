@@ -1,7 +1,0 @@
-{
-  "name": "snippet-runner",
-  "version": "1.0.0",
-  "description": "Command snippet manager with categories, search, and one-click execution in terminal",
-  "type": "extension",
-  "main": "index.js"
-}

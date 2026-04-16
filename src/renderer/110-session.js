@@ -5,10 +5,13 @@ async function saveCurrentSession(silent) {
   const paneStates = [];
   for (const [id] of panes) {
     const pane = panes.get(id);
+    if (!pane) continue; // may have been removed during iteration
     // Fetch fresh CWD and process info (async IPC)
     try {
       pane._lastCwd = await window.shellfire.getCwd(id) || pane._lastCwd || null;
     } catch {}
+    // Re-check pane still exists after each await
+    if (!panes.get(id)) continue;
     try {
       const proc = await window.shellfire.getProcessTree(id);
       if (proc && proc.args) {
@@ -20,6 +23,7 @@ async function saveCurrentSession(silent) {
         }
       }
     } catch {}
+    if (!panes.get(id)) continue;
     // Compact raw chunks into rawBuffer
     if (pane._rawChunks && pane._rawChunks.length > 0) {
       pane.rawBuffer = pane._rawChunks.join("").slice(-bufferLimit);

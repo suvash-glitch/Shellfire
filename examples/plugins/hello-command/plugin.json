@@ -1,7 +1,0 @@
-{
-  "name": "hello-command",
-  "version": "1.0.0",
-  "description": "A simple example command plugin that says hello",
-  "type": "command",
-  "main": "index.js"
-}

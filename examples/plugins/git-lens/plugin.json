@@ -1,7 +1,0 @@
-{
-  "name": "git-lens",
-  "version": "1.0.0",
-  "description": "Git integration panel with branch info, file status, recent commits, and quick git commands",
-  "type": "extension",
-  "main": "index.js"
-}

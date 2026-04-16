@@ -71,9 +71,10 @@ async function callOpenAI(apiKey, model, messages, system, maxTokens, temperatur
 
 async function callGoogle(apiKey, model, messages, system, maxTokens) {
   const m = model || "gemini-2.0-flash";
-  const r = await fetchAI(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+  // API key passed as header, not in URL — prevents key exposure in server logs
+  const r = await fetchAI(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: system }] },
       contents: messages.map(msg => ({ role: msg.role === "assistant" ? "model" : "user", parts: [{ text: msg.content }] })),

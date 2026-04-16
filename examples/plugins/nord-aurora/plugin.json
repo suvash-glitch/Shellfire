@@ -1,7 +1,0 @@
-{
-  "name": "nord-aurora",
-  "version": "1.0.0",
-  "description": "Cool blue-gray tones inspired by the Nord color palette with aurora borealis accents",
-  "type": "theme",
-  "main": "index.js"
-}

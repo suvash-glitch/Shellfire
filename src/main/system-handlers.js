@@ -239,6 +239,10 @@ function registerHandlers() {
     if (typeof command !== "string" || !command.trim()) {
       return { code: 1, stdout: "", stderr: "Invalid command" };
     }
+    // Enforce a max command length to prevent memory exhaustion
+    if (command.length > 8192) {
+      return { code: 1, stdout: "", stderr: "Command too long (max 8192 chars)" };
+    }
     const resolvedCwd = cwd ? sanitizePath(cwd) : os.homedir();
     if (!resolvedCwd) return { code: 1, stdout: "", stderr: "Invalid working directory" };
 
@@ -248,6 +252,8 @@ function registerHandlers() {
         if (!settled) { settled = true; resolve(result); }
       }
 
+      // sh -c is intentional: pipeline steps are user-authored shell commands.
+      // The renderer validates steps before sending; main process limits length above.
       const proc = spawn("sh", ["-c", command], { cwd: resolvedCwd });
       let stdout = "", stderr = "";
 

@@ -115,6 +115,7 @@ async function handleCommand(cmd, conn) {
 
     case "send": {
       if (typeof cmd.text !== "string") { conn.end(JSON.stringify({ error: "text must be a string" })); break; }
+      if (cmd.text.length > 1024 * 1024) { conn.end(JSON.stringify({ error: "text too large (max 1 MB)" })); break; }
       let resolved;
       try { resolved = await resolveSession(cmd.name); } catch (e) {
         conn.end(JSON.stringify({ error: e.message })); break;
@@ -190,10 +191,15 @@ function start() {
 
   socketServer = net.createServer((conn) => {
     let buf = "";
+    const MAX_BUF = 4 * 1024 * 1024; // 4 MB — prevents memory exhaustion from slow/malicious clients
     let streaming = false;
     conn.on("data", (chunk) => {
       if (streaming) return;
       buf += chunk.toString();
+      if (buf.length > MAX_BUF) {
+        conn.end(JSON.stringify({ error: "Request too large" }));
+        return;
+      }
       const idx = buf.indexOf("\n");
       if (idx === -1) return;
       streaming = true;

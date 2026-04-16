@@ -1,7 +1,0 @@
-{
-  "name": "ai-assistant",
-  "version": "1.0.0",
-  "description": "AI chat assistant with multi-provider support (Anthropic, OpenAI, Google, Ollama)",
-  "type": "extension",
-  "main": "index.js"
-}

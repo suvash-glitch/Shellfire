@@ -44,12 +44,12 @@ async function refreshSmartNames() {
     if (!pane) continue;
     const smart = await getSmartName(id);
     if (!smart) continue;
-    // Auto-name: set as the pane's name so it sticks in tabs, sidebar, CLI
-    // Don't overwrite user-set custom names (set via rename UI)
-    if (!pane._userRenamed) {
-      pane.customName = smart;
-      if (pane.titleEl) pane.titleEl.textContent = smart;
-    }
+    // Re-check pane still exists after the async IPC call —
+    // it may have been closed while we were awaiting.
+    const paneNow = panes.get(id);
+    if (!paneNow || paneNow._userRenamed) continue;
+    paneNow.customName = smart;
+    if (paneNow.titleEl) paneNow.titleEl.textContent = smart;
   }
 }
 // Scale interval with pane count: 4s base, +1s per pane above 5
@@ -175,8 +175,9 @@ function updateIdeSidebar() {
     }
   }
 
-  // Render
-  ideSidebarBody.innerHTML = "";
+  // Render — use replaceChildren() instead of innerHTML="" to preserve
+  // scroll position and avoid destroying detached listeners on the old nodes.
+  ideSidebarBody.replaceChildren();
 
   // If we have project groups, render them
   for (const [projectName, items] of groups) {

@@ -1,7 +1,0 @@
-{
-  "name": "ocean-theme",
-  "version": "1.0.0",
-  "description": "A calming blue ocean-themed color scheme",
-  "type": "theme",
-  "main": "index.js"
-}

@@ -1,7 +1,0 @@
-{
-  "name": "system-monitor",
-  "version": "1.0.0",
-  "description": "Statusbar widget showing active pane count, current time, and terminal process info",
-  "type": "statusbar",
-  "main": "index.js"
-}

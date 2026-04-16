@@ -1,7 +1,0 @@
-{
-  "name": "docker-dashboard",
-  "version": "1.0.0",
-  "description": "Docker container management dashboard with live status, actions, and command palette integration",
-  "type": "extension",
-  "main": "index.js"
-}

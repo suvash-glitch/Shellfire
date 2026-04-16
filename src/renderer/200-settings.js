@@ -282,9 +282,11 @@ document.querySelectorAll(".settings-nav-item").forEach(item => {
     switchSettingsTab(item.dataset.tab);
   });
 });
-// Search
+// Search — debounced to avoid DOM thrashing on rapid typing
+let _settingsSearchTimer;
 document.getElementById("settings-search").addEventListener("input", (e) => {
-  searchSettings(e.target.value);
+  clearTimeout(_settingsSearchTimer);
+  _settingsSearchTimer = setTimeout(() => searchSettings(e.target.value), 80);
 });
 // Auto-apply on change
 ["setting-theme", "setting-font-size", "setting-cursor-style", "setting-scrollback", "setting-buffer-limit", "setting-auto-save-interval"].forEach(id => {

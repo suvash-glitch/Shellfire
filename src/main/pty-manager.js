@@ -163,6 +163,8 @@ function registerHandlers() {
       let childPid;
       try { childPid = (await execFileAsync("pgrep", ["-P", pid])).split("\n")[0]; } catch {}
       const target = childPid || pid;
+      // Validate target is a numeric PID before using in filesystem path
+      if (!/^\d+$/.test(target)) return fallback();
       if (process.platform === "linux") {
         try {
           const envStr = fs.readFileSync(`/proc/${target}/environ`, "utf8");
