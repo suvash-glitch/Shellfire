@@ -1,3 +1,8 @@
+/**
+ * @module renderer/030-themes
+ * @description Built-in theme definitions (6 themes + pane color presets) loaded from window.__SF_THEMES, plus applyTheme() which applies colors to every open terminal and the UI chrome via CSS custom properties.
+ */
+
 // ============================================================
 // THEMES
 // Data lives in src/renderer/themes.js (loaded first in index.html).

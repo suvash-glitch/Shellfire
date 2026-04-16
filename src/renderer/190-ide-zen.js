@@ -1,3 +1,8 @@
+/**
+ * @module renderer/190-ide-zen
+ * @description IDE mode (sidebar file tree), zen mode (spans all monitors), enhanced tab bar with duration badges, and smart-name refresh scheduler.
+ */
+
 // ENHANCED TAB BAR WITH DURATION & SMART NAMES
 // ============================================================
 // Override updateTabBar to include durations and smarter names

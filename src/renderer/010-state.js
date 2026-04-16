@@ -1,3 +1,8 @@
+/**
+ * @module renderer/010-state
+ * @description Shared mutable state for the renderer: panes Map, active pane id, layout, settings, broadcast mode, and all feature-state variables. Every other renderer module reads from this scope.
+ */
+
 // ============================================================
 // STATE
 // ============================================================

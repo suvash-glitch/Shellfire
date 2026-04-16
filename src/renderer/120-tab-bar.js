@@ -1,3 +1,8 @@
+/**
+ * @module renderer/120-tab-bar
+ * @description Pane number badges and the draggable tab bar (updatePaneNumbers, updateTabBar). Tracks tab drag state for reorder.
+ */
+
 // ============================================================
 // PANE NUMBERS & TAB BAR
 // ============================================================

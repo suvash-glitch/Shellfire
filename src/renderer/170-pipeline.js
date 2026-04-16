@@ -1,3 +1,8 @@
+/**
+ * @module renderer/170-pipeline
+ * @description Pipeline visual editor: node graph with pan/zoom, edge drag, topological sort, inline step prompts, and pipeline execution.
+ */
+
 // ============================================================
 // PIPELINE VISUAL EDITOR (Mindmap)
 // ============================================================

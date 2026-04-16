@@ -1,3 +1,8 @@
+/**
+ * @module renderer/050-layout
+ * @description Grid layout engine: renders the pane grid from the layout array, fits all terminals to their containers, handles divider drag-resize, and manages the active-pane indicator.
+ */
+
 // ============================================================
 // LAYOUT
 // ============================================================

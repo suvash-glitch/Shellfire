@@ -1,3 +1,8 @@
+/**
+ * @module renderer/260-startup-tasks
+ * @description Startup task manager: define sequences of commands to run automatically when Shellfire opens.
+ */
+
 // STARTUP TASKS
 // ============================================================
 let startupTasks = []; // { name, autoRun, steps: [{ cwd, command, delay }] }

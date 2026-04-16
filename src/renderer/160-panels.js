@@ -1,3 +1,8 @@
+/**
+ * @module renderer/160-panels
+ * @description Floating side panels: system monitor, terminal logging controls, floating pane (PiP), notes scratchpad, pane link, environment variable viewer, Docker container panel, port manager panel, cross-pane command history (Ctrl+R), AI error detection, and pane-stats sparklines.
+ */
+
 // SYSTEM MONITOR
 // ============================================================
 async function updateSystemStats() {

@@ -8,6 +8,11 @@
     // ==========================================================
     // STATE  (src/renderer/010-state.js)
     // ==========================================================
+/**
+ * @module renderer/010-state
+ * @description Shared mutable state for the renderer: panes Map, active pane id, layout, settings, broadcast mode, and all feature-state variables. Every other renderer module reads from this scope.
+ */
+
 // ============================================================
 // STATE
 // ============================================================
@@ -47,6 +52,11 @@ const paneErrorDebounce = new Map(); // paneId -> last error timestamp
     // ==========================================================
     // EXTENSION API  (src/renderer/020-extension-api.js)
     // ==========================================================
+/**
+ * @module renderer/020-extension-api
+ * @description Exposes window._termExt — the legacy extension API surface available to installed plugins. Provides hooks (terminalInput, errorDetected, contextMenu), toolbar injection, side-panel injection, and command registration.
+ */
+
 // ============================================================
 // EXTENSION PLUGIN API
 // ============================================================
@@ -106,6 +116,11 @@ window._termExt = {
     // ==========================================================
     // THEMES  (src/renderer/030-themes.js)
     // ==========================================================
+/**
+ * @module renderer/030-themes
+ * @description Built-in theme definitions (6 themes + pane color presets) loaded from window.__SF_THEMES, plus applyTheme() which applies colors to every open terminal and the UI chrome via CSS custom properties.
+ */
+
 // ============================================================
 // THEMES
 // Data lives in src/renderer/themes.js (loaded first in index.html).
@@ -181,8 +196,13 @@ function cycleTheme() { applyTheme((currentThemeIdx + 1) % themes.length); }
 
 
     // ==========================================================
-    // UTILS  (src/renderer/040-utils.js)
+    // ZOOM FONT  (src/renderer/040-zoom-font.js)
     // ==========================================================
+/**
+ * @module renderer/040-zoom-font
+ * @description App-wide zoom (applyZoom) that scales the entire Electron window and terminal font size (setFontSize) which applies only to xterm instances.
+ */
+
 // ============================================================
 // ZOOM (app-wide — scales entire UI chrome + terminal)
 // ============================================================
@@ -226,8 +246,13 @@ function setFontSize(size) {
 
 
     // ==========================================================
-    // THEME MANAGER  (src/renderer/050-theme-manager.js)
+    // LAYOUT  (src/renderer/050-layout.js)
     // ==========================================================
+/**
+ * @module renderer/050-layout
+ * @description Grid layout engine: renders the pane grid from the layout array, fits all terminals to their containers, handles divider drag-resize, and manages the active-pane indicator.
+ */
+
 // ============================================================
 // LAYOUT
 // ============================================================
@@ -427,8 +452,13 @@ function findPaneInLayout(id) {
 
 
     // ==========================================================
-    // LAYOUT  (src/renderer/060-layout.js)
+    // SPLIT ZOOM  (src/renderer/060-split-zoom.js)
     // ==========================================================
+/**
+ * @module renderer/060-split-zoom
+ * @description Pane split actions (horizontal/vertical), pane zoom-to-fullscreen toggle, broadcast-mode toggle, and skip-permissions toggle.
+ */
+
 // ============================================================
 // SPLIT
 // ============================================================
@@ -508,6 +538,11 @@ function toggleSkipPermissions() {
     // ==========================================================
     // PANE MANAGER  (src/renderer/070-pane-manager.js)
     // ==========================================================
+/**
+ * @module renderer/070-pane-manager
+ * @description Pane lifecycle: setActive, createPaneObj (xterm + header + scroll button), addTerminal, removeTerminal. The largest and most critical renderer module.
+ */
+
 // ============================================================
 // PANE MANAGEMENT
 // ============================================================
@@ -1085,6 +1120,11 @@ function removeTerminal(id) {
     // ==========================================================
     // IPC  (src/renderer/080-ipc.js)
     // ==========================================================
+/**
+ * @module renderer/080-ipc
+ * @description IPC event handlers: terminal-data (writes PTY output to xterm), terminal-exit (removes pane), zen-mode-changed, and update-status forwarding.
+ */
+
 // ============================================================
 // IPC
 // ============================================================
@@ -1137,6 +1177,11 @@ window.shellfire.onExit((id, exitCode) => {
     // ==========================================================
     // UI  (src/renderer/090-ui.js)
     // ==========================================================
+/**
+ * @module renderer/090-ui
+ * @description Search bar (find-in-terminal), right-click context menu, snippet runner, and profile (layout preset) manager.
+ */
+
 // ============================================================
 // SEARCH
 // ============================================================
@@ -1378,6 +1423,11 @@ async function loadProfile(profile) {
     // ==========================================================
     // COMMAND PALETTE  (src/renderer/100-command-palette.js)
     // ==========================================================
+/**
+ * @module renderer/100-command-palette
+ * @description Command palette (Cmd+P): fuzzy search over all registered commands, keyboard navigation, and execution.
+ */
+
 // ============================================================
 // COMMAND PALETTE
 // ============================================================
@@ -1522,6 +1572,11 @@ paletteOverlay.addEventListener("click", (e) => { if (e.target === paletteOverla
     // ==========================================================
     // SESSION  (src/renderer/110-session.js)
     // ==========================================================
+/**
+ * @module renderer/110-session
+ * @description Session persistence: saveCurrentSession (serialises pane layout + scrollback to JSON) and restoreSession (reconstructs panes from saved state on startup).
+ */
+
 // ============================================================
 // SESSION
 // ============================================================
@@ -1744,6 +1799,11 @@ function resetLayout() {
     // ==========================================================
     // TAB BAR  (src/renderer/120-tab-bar.js)
     // ==========================================================
+/**
+ * @module renderer/120-tab-bar
+ * @description Pane number badges and the draggable tab bar (updatePaneNumbers, updateTabBar). Tracks tab drag state for reorder.
+ */
+
 // ============================================================
 // PANE NUMBERS & TAB BAR
 // ============================================================
@@ -1916,6 +1976,11 @@ setActive = function(id) { _baseSetActive(id); for (const fn of _setActiveHooks)
     // ==========================================================
     // TOOLS  (src/renderer/130-tools.js)
     // ==========================================================
+/**
+ * @module renderer/130-tools
+ * @description Cron manager UI, recent-directory picker, fuzzy file finder, pane output capture, smart-paste confirmation, close-all-others action, keyboard pane-resize, and quick command bar (Cmd+;).
+ */
+
 // ============================================================
 // CRON MANAGER
 // ============================================================
@@ -2281,6 +2346,11 @@ function setupTabDrag(tabEl, paneId) {
     // ==========================================================
     // HANDLERS  (src/renderer/140-handlers.js)
     // ==========================================================
+/**
+ * @module renderer/140-handlers
+ * @description Button event handlers for every toolbar/titlebar control, global keyboard shortcut bindings, and keyword watcher (fires commands when terminal output matches a pattern).
+ */
+
 // BUTTON HANDLERS
 // ============================================================
 document.getElementById("btn-add").addEventListener("click", () => addTerminal());
@@ -2565,6 +2635,11 @@ function toggleWatcher() {
     // ==========================================================
     // SSH  (src/renderer/150-ssh.js)
     // ==========================================================
+/**
+ * @module renderer/150-ssh
+ * @description SSH bookmark manager UI and remote connection dialog that uses the ssh-remote-list / ssh-remote-open-all IPC channels.
+ */
+
 // SSH BOOKMARKS
 // ============================================================
 let sshBookmarks = [];
@@ -2929,6 +3004,11 @@ async function doSplitAndRun(command) {
     // ==========================================================
     // PANELS  (src/renderer/160-panels.js)
     // ==========================================================
+/**
+ * @module renderer/160-panels
+ * @description Floating side panels: system monitor, terminal logging controls, floating pane (PiP), notes scratchpad, pane link, environment variable viewer, Docker container panel, port manager panel, cross-pane command history (Ctrl+R), AI error detection, and pane-stats sparklines.
+ */
+
 // SYSTEM MONITOR
 // ============================================================
 async function updateSystemStats() {
@@ -3485,6 +3565,11 @@ setTimeout(() => setInterval(refreshPaneStats, 5000), 3500);
     // ==========================================================
     // MARKETPLACE  (src/renderer/165-marketplace.js)
     // ==========================================================
+/**
+ * @module renderer/165-marketplace
+ * @description Extension marketplace UI: fetches the remote registry, renders plugin cards with install/uninstall actions, and filters by type/keyword.
+ */
+
 // EXTENSIONS / PLUGINS
 // ============================================================
 // ============================================================
@@ -3782,6 +3867,11 @@ function filterMarketplace(filter, query) {
     // ==========================================================
     // PIPELINE  (src/renderer/170-pipeline.js)
     // ==========================================================
+/**
+ * @module renderer/170-pipeline
+ * @description Pipeline visual editor: node graph with pan/zoom, edge drag, topological sort, inline step prompts, and pipeline execution.
+ */
+
 // ============================================================
 // PIPELINE VISUAL EDITOR (Mindmap)
 // ============================================================
@@ -4396,6 +4486,11 @@ async function loadPipelinesData() {
     // ==========================================================
     // BOOKMARKS  (src/renderer/180-bookmarks.js)
     // ==========================================================
+/**
+ * @module renderer/180-bookmarks
+ * @description Command bookmarks panel: add, search, and execute saved shell commands.
+ */
+
 // ============================================================
 const cmdBookmarksPanel = document.getElementById("cmd-bookmarks-panel");
 const bookmarkListEl = document.getElementById("bookmark-list");
@@ -4548,6 +4643,11 @@ function bookmarkLastCommand() {
     // ==========================================================
     // URL COMMAND TAB  (src/renderer/185-url-command-tab.js)
     // ==========================================================
+/**
+ * @module renderer/185-url-command-tab
+ * @description URL hover tooltips, command duration timer, smart tab name heuristics (maps process + CWD to a readable label), directory bookmarks, watch mode (re-runs a command when files change), cross-pane search, and file preview sidebar.
+ */
+
 // ============================================================
 // URL PREVIEW (hover tooltip for URLs in terminal)
 // ============================================================
@@ -5038,6 +5138,11 @@ document.getElementById("file-preview-open").addEventListener("click", () => {
     // ==========================================================
     // IDE ZEN  (src/renderer/190-ide-zen.js)
     // ==========================================================
+/**
+ * @module renderer/190-ide-zen
+ * @description IDE mode (sidebar file tree), zen mode (spans all monitors), enhanced tab bar with duration badges, and smart-name refresh scheduler.
+ */
+
 // ENHANCED TAB BAR WITH DURATION & SMART NAMES
 // ============================================================
 // Override updateTabBar to include durations and smarter names
@@ -5381,6 +5486,11 @@ if (ideSidebarResize) {
     // ==========================================================
     // SETTINGS  (src/renderer/200-settings.js)
     // ==========================================================
+/**
+ * @module renderer/200-settings
+ * @description Settings panel UI: all preference tabs (appearance, terminal, AI, keybindings), live-apply on change, search, onboarding flow.
+ */
+
 // ENHANCED BOTTOM BAR
 // ============================================================
 const bottombarBranch = document.getElementById("bottombar-branch");
@@ -5792,6 +5902,11 @@ function showOnboarding() {
     // ==========================================================
     // RESIZE  (src/renderer/210-resize.js)
     // ==========================================================
+/**
+ * @module renderer/210-resize
+ * @description Window resize debouncer, beforeunload cleanup (clears all intervals to prevent leaks on renderer reload).
+ */
+
 // RESIZE & CLEANUP
 // ============================================================
 let resizeDebounce = null;
@@ -5821,6 +5936,11 @@ document.addEventListener("visibilitychange", () => { _appVisible = !document.hi
     // ==========================================================
     // PLUGIN SYSTEM  (src/renderer/220-plugin-system.js)
     // ==========================================================
+/**
+ * @module renderer/220-plugin-system
+ * @description Plugin runtime: activateSinglePlugin (loads JS via new Function, sandboxed), _applyPlugin (wires theme/command/statusbar/extension types), deactivatePlugin (removes all registered DOM + hooks + intervals), loadPlugins orchestrator.
+ */
+
 // PLUGIN SYSTEM
 // ============================================================
 const _loadedPlugins = new Set(); // track already-loaded plugin names
@@ -6096,6 +6216,11 @@ async function loadPlugins() {
     // ==========================================================
     // SECRETS  (src/renderer/230-secrets.js)
     // ==========================================================
+/**
+ * @module renderer/230-secrets
+ * @description Secrets vault UI: list, add, edit, and inject encrypted secrets into PTY sessions.
+ */
+
 // SECRETS MANAGER
 // ============================================================
 let secretsVault = []; // { key, value, injected? }
@@ -6215,6 +6340,11 @@ document.getElementById("secrets-inject-select-btn").addEventListener("click", a
     // ==========================================================
     // STATUS BAR  (src/renderer/240-status-bar.js)
     // ==========================================================
+/**
+ * @module renderer/240-status-bar
+ * @description Status bar widgets: clock, Kubernetes context, AWS profile, Node.js version. Enhanced Picture-in-Picture floating terminal.
+ */
+
 // STATUS BAR WIDGETS (clock, k8s, AWS, node)
 // ============================================================
 const widgetClock = document.getElementById("widget-clock");
@@ -6378,6 +6508,11 @@ toggleFloating = function(id) {
     // ==========================================================
     // QUICK ACTIONS  (src/renderer/250-quick-actions.js)
     // ==========================================================
+/**
+ * @module renderer/250-quick-actions
+ * @description Quick-action overlay that appears on terminal output: contextual buttons for common actions (open URL, copy path, explain error).
+ */
+
 // QUICK ACTIONS ON TERMINAL OUTPUT
 // ============================================================
 const quickActionMenuEl = document.createElement("div");
@@ -6555,6 +6690,11 @@ showContextMenu = function(x, y, paneId) {
     // ==========================================================
     // STARTUP TASKS  (src/renderer/260-startup-tasks.js)
     // ==========================================================
+/**
+ * @module renderer/260-startup-tasks
+ * @description Startup task manager: define sequences of commands to run automatically when Shellfire opens.
+ */
+
 // STARTUP TASKS
 // ============================================================
 let startupTasks = []; // { name, autoRun, steps: [{ cwd, command, delay }] }
@@ -6749,6 +6889,11 @@ async function runAutoStartupTasks() {
     // ==========================================================
     // INIT  (src/renderer/270-init.js)
     // ==========================================================
+/**
+ * @module renderer/270-init
+ * @description Application initialisation: loads settings, restores or reattaches PTY sessions, starts auto-save timer, registers palette commands, and wires cleanup on unload.
+ */
+
 // REGISTER NEW COMMANDS IN PALETTE
 // ============================================================
 commands.push(
@@ -7001,6 +7146,11 @@ window.addEventListener("beforeunload", () => {
     // ==========================================================
     // EXPOSE  (src/renderer/280-expose.js)
     // ==========================================================
+/**
+ * @module renderer/280-expose
+ * @description Exposes renderer internals to the CLI/MCP socket layer (window.__panes, window.__activeId, window.__setActive, window.__createPane, window.__removeTerminal) and handles the auto-update notification banner.
+ */
+
 // EXPOSE INTERNALS FOR CLI MULTIPLEXER SOCKET
 // ============================================================
 window.__panes = panes;

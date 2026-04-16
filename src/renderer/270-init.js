@@ -1,3 +1,8 @@
+/**
+ * @module renderer/270-init
+ * @description Application initialisation: loads settings, restores or reattaches PTY sessions, starts auto-save timer, registers palette commands, and wires cleanup on unload.
+ */
+
 // REGISTER NEW COMMANDS IN PALETTE
 // ============================================================
 commands.push(

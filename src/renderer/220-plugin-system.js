@@ -1,3 +1,8 @@
+/**
+ * @module renderer/220-plugin-system
+ * @description Plugin runtime: activateSinglePlugin (loads JS via new Function, sandboxed), _applyPlugin (wires theme/command/statusbar/extension types), deactivatePlugin (removes all registered DOM + hooks + intervals), loadPlugins orchestrator.
+ */
+
 // PLUGIN SYSTEM
 // ============================================================
 const _loadedPlugins = new Set(); // track already-loaded plugin names

@@ -1,3 +1,8 @@
+/**
+ * @module renderer/180-bookmarks
+ * @description Command bookmarks panel: add, search, and execute saved shell commands.
+ */
+
 // ============================================================
 const cmdBookmarksPanel = document.getElementById("cmd-bookmarks-panel");
 const bookmarkListEl = document.getElementById("bookmark-list");

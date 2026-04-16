@@ -1,3 +1,8 @@
+/**
+ * @module renderer/165-marketplace
+ * @description Extension marketplace UI: fetches the remote registry, renders plugin cards with install/uninstall actions, and filters by type/keyword.
+ */
+
 // EXTENSIONS / PLUGINS
 // ============================================================
 // ============================================================

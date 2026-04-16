@@ -1,3 +1,8 @@
+/**
+ * @module renderer/250-quick-actions
+ * @description Quick-action overlay that appears on terminal output: contextual buttons for common actions (open URL, copy path, explain error).
+ */
+
 // QUICK ACTIONS ON TERMINAL OUTPUT
 // ============================================================
 const quickActionMenuEl = document.createElement("div");

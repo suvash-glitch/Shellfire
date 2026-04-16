@@ -1,3 +1,8 @@
+/**
+ * @module renderer/140-handlers
+ * @description Button event handlers for every toolbar/titlebar control, global keyboard shortcut bindings, and keyword watcher (fires commands when terminal output matches a pattern).
+ */
+
 // BUTTON HANDLERS
 // ============================================================
 document.getElementById("btn-add").addEventListener("click", () => addTerminal());

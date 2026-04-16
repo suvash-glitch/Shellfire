@@ -1,3 +1,8 @@
+/**
+ * @module renderer/150-ssh
+ * @description SSH bookmark manager UI and remote connection dialog that uses the ssh-remote-list / ssh-remote-open-all IPC channels.
+ */
+
 // SSH BOOKMARKS
 // ============================================================
 let sshBookmarks = [];

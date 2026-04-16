@@ -1,3 +1,8 @@
+/**
+ * @module renderer/110-session
+ * @description Session persistence: saveCurrentSession (serialises pane layout + scrollback to JSON) and restoreSession (reconstructs panes from saved state on startup).
+ */
+
 // ============================================================
 // SESSION
 // ============================================================

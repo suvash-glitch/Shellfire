@@ -1,3 +1,8 @@
+/**
+ * @module renderer/185-url-command-tab
+ * @description URL hover tooltips, command duration timer, smart tab name heuristics (maps process + CWD to a readable label), directory bookmarks, watch mode (re-runs a command when files change), cross-pane search, and file preview sidebar.
+ */
+
 // ============================================================
 // URL PREVIEW (hover tooltip for URLs in terminal)
 // ============================================================

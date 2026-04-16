@@ -1,3 +1,8 @@
+/**
+ * @module renderer/200-settings
+ * @description Settings panel UI: all preference tabs (appearance, terminal, AI, keybindings), live-apply on change, search, onboarding flow.
+ */
+
 // ENHANCED BOTTOM BAR
 // ============================================================
 const bottombarBranch = document.getElementById("bottombar-branch");

@@ -1,3 +1,8 @@
+/**
+ * @module renderer/100-command-palette
+ * @description Command palette (Cmd+P): fuzzy search over all registered commands, keyboard navigation, and execution.
+ */
+
 // ============================================================
 // COMMAND PALETTE
 // ============================================================

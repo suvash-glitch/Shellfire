@@ -1,3 +1,8 @@
+/**
+ * @module renderer/070-pane-manager
+ * @description Pane lifecycle: setActive, createPaneObj (xterm + header + scroll button), addTerminal, removeTerminal. The largest and most critical renderer module.
+ */
+
 // ============================================================
 // PANE MANAGEMENT
 // ============================================================

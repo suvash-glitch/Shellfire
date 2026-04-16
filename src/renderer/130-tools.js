@@ -1,3 +1,8 @@
+/**
+ * @module renderer/130-tools
+ * @description Cron manager UI, recent-directory picker, fuzzy file finder, pane output capture, smart-paste confirmation, close-all-others action, keyboard pane-resize, and quick command bar (Cmd+;).
+ */
+
 // ============================================================
 // CRON MANAGER
 // ============================================================

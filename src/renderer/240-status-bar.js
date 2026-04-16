@@ -1,3 +1,8 @@
+/**
+ * @module renderer/240-status-bar
+ * @description Status bar widgets: clock, Kubernetes context, AWS profile, Node.js version. Enhanced Picture-in-Picture floating terminal.
+ */
+
 // STATUS BAR WIDGETS (clock, k8s, AWS, node)
 // ============================================================
 const widgetClock = document.getElementById("widget-clock");

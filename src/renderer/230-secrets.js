@@ -1,3 +1,8 @@
+/**
+ * @module renderer/230-secrets
+ * @description Secrets vault UI: list, add, edit, and inject encrypted secrets into PTY sessions.
+ */
+
 // SECRETS MANAGER
 // ============================================================
 let secretsVault = []; // { key, value, injected? }

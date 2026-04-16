@@ -1,3 +1,8 @@
+/**
+ * @module renderer/040-zoom-font
+ * @description App-wide zoom (applyZoom) that scales the entire Electron window and terminal font size (setFontSize) which applies only to xterm instances.
+ */
+
 // ============================================================
 // ZOOM (app-wide — scales entire UI chrome + terminal)
 // ============================================================

@@ -1,3 +1,8 @@
+/**
+ * @module renderer/280-expose
+ * @description Exposes renderer internals to the CLI/MCP socket layer (window.__panes, window.__activeId, window.__setActive, window.__createPane, window.__removeTerminal) and handles the auto-update notification banner.
+ */
+
 // EXPOSE INTERNALS FOR CLI MULTIPLEXER SOCKET
 // ============================================================
 window.__panes = panes;

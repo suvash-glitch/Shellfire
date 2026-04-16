@@ -1,3 +1,8 @@
+/**
+ * @module renderer/090-ui
+ * @description Search bar (find-in-terminal), right-click context menu, snippet runner, and profile (layout preset) manager.
+ */
+
 // ============================================================
 // SEARCH
 // ============================================================

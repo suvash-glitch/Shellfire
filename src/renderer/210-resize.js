@@ -1,3 +1,8 @@
+/**
+ * @module renderer/210-resize
+ * @description Window resize debouncer, beforeunload cleanup (clears all intervals to prevent leaks on renderer reload).
+ */
+
 // RESIZE & CLEANUP
 // ============================================================
 let resizeDebounce = null;

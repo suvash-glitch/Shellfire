@@ -1,3 +1,8 @@
+/**
+ * @module renderer/020-extension-api
+ * @description Exposes window._termExt — the legacy extension API surface available to installed plugins. Provides hooks (terminalInput, errorDetected, contextMenu), toolbar injection, side-panel injection, and command registration.
+ */
+
 // ============================================================
 // EXTENSION PLUGIN API
 // ============================================================

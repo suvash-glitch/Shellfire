@@ -1,3 +1,8 @@
+/**
+ * @module renderer/060-split-zoom
+ * @description Pane split actions (horizontal/vertical), pane zoom-to-fullscreen toggle, broadcast-mode toggle, and skip-permissions toggle.
+ */
+
 // ============================================================
 // SPLIT
 // ============================================================

@@ -1,3 +1,8 @@
+/**
+ * @module renderer/080-ipc
+ * @description IPC event handlers: terminal-data (writes PTY output to xterm), terminal-exit (removes pane), zen-mode-changed, and update-status forwarding.
+ */
+
 // ============================================================
 // IPC
 // ============================================================
