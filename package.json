@@ -62,6 +62,9 @@
       "index.html",
       "styles.css",
       "renderer.js",
+      "src/**/*",
+      "registry/**/*",
+      "scripts/build-renderer.js",
       "bin/**/*",
       "node_modules/**/*"
     ],
