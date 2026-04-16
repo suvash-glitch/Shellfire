@@ -3,6 +3,19 @@
  * @description Shared mutable state for the renderer: panes Map, active pane id, layout, settings, broadcast mode, and all feature-state variables. Every other renderer module reads from this scope.
  */
 
+// ─── Global error capture (dev + prod) ───────────────────────
+// Catches uncaught JS errors and unhandled promise rejections and
+// writes them to the DevTools console AND the IPC log channel so
+// they appear in the main-process terminal even without DevTools open.
+window.addEventListener("error", (e) => {
+  const msg = `[renderer error] ${e.message} @ ${e.filename}:${e.lineno}`;
+  console.error(msg, e.error);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const msg = `[renderer unhandled promise] ${e.reason}`;
+  console.error(msg, e.reason);
+});
+
 // ============================================================
 // STATE
 // ============================================================

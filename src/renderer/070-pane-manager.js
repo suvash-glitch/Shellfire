@@ -423,14 +423,21 @@ async function createPaneObj(cwd, restoreCmd, replayBuffer, existingId) {
   try { searchAddon = new SearchAddon.SearchAddon(); term.loadAddon(searchAddon); } catch (e) { console.warn("SearchAddon failed:", e.message); }
   try { term.loadAddon(new WebLinksAddon.WebLinksAddon()); } catch (e) { console.warn("WebLinksAddon failed:", e.message); }
   term.open(body);
-  // Try WebGL renderer, fall back to canvas if GPU unavailable
+  // Attach WebGL renderer for GPU-accelerated rendering.
+  // On context loss (GPU crash/reset) dispose the addon — xterm falls back
+  // to its built-in DOM renderer automatically, keeping the pane functional.
   try {
     if (typeof WebglAddon !== "undefined") {
       const webgl = new WebglAddon.WebglAddon();
-      webgl.onContextLoss(() => { webgl.dispose(); console.warn("WebGL context lost for pane", id); });
+      webgl.onContextLoss(() => {
+        try { webgl.dispose(); } catch {}
+        // Context loss is non-fatal: xterm continues with DOM renderer
+      });
       term.loadAddon(webgl);
     }
-  } catch (e) { console.warn("WebGL addon failed, using canvas renderer:", e.message); }
+  } catch {
+    // WebGL unavailable — xterm uses DOM renderer (functional, slightly slower)
+  }
 
   // Copy on select
   term.onSelectionChange(() => {
