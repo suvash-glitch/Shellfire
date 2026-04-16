@@ -18,7 +18,9 @@ function updateClockWidget() {
   widgetClock.innerHTML = `<span class="widget-icon">\u23F0</span> ${h}:${m}:${s}`;
   widgetClock.classList.add("visible");
 }
-setInterval(updateClockWidget, 1000);
+// Clock at 5 s — users rarely need sub-second precision in the status bar.
+// Change to 1000 for a live clock if preferred.
+setInterval(updateClockWidget, 5000);
 updateClockWidget();
 
 async function updateK8sWidget() {

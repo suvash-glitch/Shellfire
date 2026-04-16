@@ -45,7 +45,8 @@ async function updateBottomBar() {
     bottombarBranch.classList.remove("visible");
   }
 }
-setInterval(updateBottomBar, 3000);
+// 6 s is responsive enough for CWD/git updates without hammering the main process
+setInterval(updateBottomBar, 6000);
 
 // Show shell name in bottombar
 (async () => {
@@ -228,13 +229,17 @@ function applySettings() {
   const newIdeMode = document.getElementById("setting-ide-mode").checked;
   if (newIdeMode !== ideMode) toggleIdeMode();
 
-  // Apply to all terminals
+  // Apply to all terminals using the bulk options setter (single rerender per terminal)
   for (const [, pane] of panes) {
-    pane.term.options.fontSize = newFontSize;
-    pane.term.options.fontFamily = newFontFamily;
-    pane.term.options.cursorStyle = newCursorStyle;
-    pane.term.options.cursorBlink = newCursorBlink;
-    pane.term.options.scrollback = newScrollback;
+    if (!pane.term) continue;
+    pane.term.options = {
+      ...pane.term.options,
+      fontSize: newFontSize,
+      fontFamily: newFontFamily,
+      cursorStyle: newCursorStyle,
+      cursorBlink: newCursorBlink,
+      scrollback: newScrollback,
+    };
   }
   currentFontSize = newFontSize;
   if (newTheme !== currentThemeIdx) applyTheme(newTheme);

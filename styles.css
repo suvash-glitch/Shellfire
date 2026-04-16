@@ -1021,7 +1021,7 @@
        Settings Modal (v2 redesign)
        ============================================================ */
     .settings-overlay {
-      display: none; position: fixed; inset: 0; z-index: 900;
+      display: none; position: fixed; inset: 0; z-index: 1200; /* above context menu (1000), cron (950), history (1000), project editor (1100) */
       background: rgba(0,0,0,0.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
       align-items: center; justify-content: center;
       animation: fadeIn 0.15s ease;

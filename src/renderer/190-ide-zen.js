@@ -39,8 +39,11 @@ updateTabBar = function() {
   });
 };
 
-// Periodically refresh tab bar to update durations
-setInterval(updateTabBar, 2000);
+// Periodically refresh tab bar to update durations.
+// 8 s is fast enough for duration badges while not thrashing the DOM.
+// enrichTabData (120-tab-bar.js) already calls updateTabBar after each IPC round-trip,
+// so this standalone interval only fires as a fallback for duration-only updates.
+setInterval(updateTabBar, 8000);
 
 // Periodically update smart names
 async function refreshSmartNames() {
